@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from pathlib import Path
 
@@ -24,7 +25,16 @@ def parsed_events():
 
 def test_parses_event_course_links_titles_deadlines_and_multiple_events() -> None:
     events = parsed_events()
-    assert len(events) == 4
+    assert len(events) >= 6
+    assert len({event.event_id for event in events}) == len(events)
+    assert [event.assignment_title for event in events] == [
+        "Tugas 0",
+        "Tugas 1",
+        "Checkpoint 01: Analisis Algoritma",
+        "Kuis Partisipasi Pekan Ketiga PBP C",
+        "Tugas Individu 1 - Sistem Bilangan, Fungsi, dan Limit",
+        "Pengumpulan Tugas Individu 1",
+    ]
 
     first = events[0]
     assert first.event_id == "112207"
@@ -35,12 +45,15 @@ def test_parses_event_course_links_titles_deadlines_and_multiple_events() -> Non
     assert first.deadline == datetime(2026, 9, 7, 23, 55, tzinfo=WIB)
     assert "Format pengumpulan: File text (.txt)" in first.description
     assert first.activity_url == "https://scele.cs.ui.ac.id/mod/assign/view.php?id=221440"
+    quiz = next(event for event in events if event.event_component == "mod_quiz")
+    assert quiz.assignment_title == "Kuis Partisipasi Pekan Ketiga PBP C"
+    assert quiz.deadline == datetime(2026, 9, 13, 23, 59, tzinfo=WIB)
 
 
 def test_upcoming_sorting_and_today_filter() -> None:
     upcoming = upcoming_events(parsed_events(), NOW)
-    assert [event.event_id for event in upcoming] == ["112207", "112208", "112209"]
-    assert [event.event_id for event in deadlines_today(upcoming, NOW)] == ["112207", "112208"]
+    assert len(upcoming) >= 6
+    assert [event.event_id for event in deadlines_today(upcoming, NOW)] == ["112207", "112208", "112211"]
 
 
 def test_relative_deadlines_use_wib_reference_date() -> None:
@@ -48,7 +61,14 @@ def test_relative_deadlines_use_wib_reference_date() -> None:
     assert _parse_deadline("Besok, Pukul 00.30", NOW) == datetime(2026, 9, 8, 0, 30, tzinfo=WIB)
 
 
-def test_embed_payloads_have_no_avatar_and_empty_deadline_is_readable() -> None:
+def test_parser_logs_raw_and_parsed_event_counts(caplog) -> None:
+    caplog.set_level(logging.INFO, logger="bot.parser")
+    parsed_events()
+    assert "Found 6 raw event nodes" in caplog.text
+    assert "Parsed 6 events" in caplog.text
+
+
+def test_embed_payloads_are_plain_task_first_text() -> None:
     upcoming = upcoming_events(parsed_events(), NOW)
     schedule = schedule_payload(upcoming)
     assert schedule["username"] == "Rachel"
@@ -58,10 +78,15 @@ def test_embed_payloads_have_no_avatar_and_empty_deadline_is_readable() -> None:
     assert schedule_embed["color"] == 3447003
     first_field = schedule_embed["fields"][0]
     assert first_field["name"] == "**Tugas 0**"
-    assert first_field["value"].startswith("🎓 **Pengantar Sistem Operasi (A,B) Gasal 2026/2027**")
-    assert "⏰ Deadline: **Senin, 7 September 2026, Pukul 23.55**" in first_field["value"]
-    assert "[🔗 Buka Tugas]" in first_field["value"]
+    assert first_field["value"] == (
+        "Pengantar Sistem Operasi (A,B) Gasal 2026/2027\n"
+        "Deadline: **Senin, 7 September 2026, Pukul 23.55**\n"
+        "[Buka Tugas](https://scele.cs.ui.ac.id/mod/assign/view.php?id=221440)"
+    )
     assert "Informasi Tugas" not in first_field["value"]
+    assert "Format pengumpulan" not in first_field["value"]
+    assert "discord.com/assets" not in str(schedule)
+    assert "![" not in str(schedule)
 
     deadline = deadline_today_payload([])["embeds"][0]
     assert deadline["title"] == "🚨 DEADLINE HARI INI"

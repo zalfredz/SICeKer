@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
+from urllib.parse import urlparse
 
 import requests
 
@@ -27,17 +29,35 @@ def _truncate(value: str, limit: int) -> str:
     return value if len(value) <= limit else value[: limit - 1].rstrip() + "…"
 
 
+def _plain_embed_text(value: str) -> str:
+    """Defensively remove markup or Discord asset links from source text."""
+    value = re.sub(r"!\[[^]]*]\([^)]*\)", "", value)
+    value = re.sub(r"<[^>]+>", "", value)
+    value = re.sub(r"https?://(?:cdn\.)?discord(?:app)?\.com/assets/\S+", "", value, flags=re.I)
+    return " ".join(value.split())
+
+
+def _activity_link(url: str | None) -> str | None:
+    if not url:
+        return None
+    parsed = urlparse(url)
+    if parsed.scheme != "https" or parsed.netloc.lower() != "scele.cs.ui.ac.id" or not parsed.path.startswith("/mod/"):
+        return None
+    return url
+
+
 def task_field(event: CalendarEvent) -> dict[str, object]:
     if not event.deadline:
         raise ValueError(f"Event {event.event_id} has no deadline")
     lines = [
-        f"🎓 **{event.course_name or 'Mata kuliah tidak diketahui'}**",
-        f"⏰ Deadline: **{format_wib(event.deadline)}**",
+        _plain_embed_text(event.course_name or "Mata kuliah tidak diketahui"),
+        f"Deadline: **{format_wib(event.deadline)}**",
     ]
-    if event.activity_url:
-        lines.append(f"[🔗 Buka Tugas]({event.activity_url})")
+    activity_url = _activity_link(event.activity_url)
+    if activity_url:
+        lines.append(f"[Buka Tugas]({activity_url})")
     return {
-        "name": f"**{_truncate(event.assignment_title, 252)}**",
+        "name": f"**{_truncate(_plain_embed_text(event.assignment_title), 252)}**",
         "value": _truncate("\n".join(lines), 1024),
         "inline": False,
     }

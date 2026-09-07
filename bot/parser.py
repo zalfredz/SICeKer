@@ -81,7 +81,7 @@ def _clean_course_name(value: str | None) -> str | None:
 
 
 def _clean_assignment_title(value: str) -> str:
-    return re.sub(r"\s+(?:is\s+due|due)\s*$", "", value, flags=re.I).strip()
+    return re.sub(r"\s+(?:is\s+due|closes|due)\s*$", "", value, flags=re.I).strip()
 
 
 def _normalise_date_text(raw: str) -> str:
@@ -121,12 +121,11 @@ def _parse_deadline(raw: str | None, now: datetime | None = None) -> datetime | 
 
 
 def _event_nodes(soup: BeautifulSoup) -> list[Tag]:
-    return [
-        node
-        for node in soup.find_all(attrs={"data-event-id": True})
-        if isinstance(node, Tag)
-        and not any(parent.has_attr("data-event-id") for parent in node.parents if isinstance(parent, Tag))
-    ]
+    """Return every event container, preferring SCELE's calendar selector."""
+    nodes = soup.select("div[data-type='event'][data-event-id]")
+    if not nodes:
+        nodes = soup.select("[data-event-id]")
+    return [node for node in nodes if isinstance(node, Tag)]
 
 
 def _description(node: Tag) -> str | None:
@@ -203,7 +202,9 @@ def parse_calendar_html(
     soup = BeautifulSoup(html, "html.parser")
     events: list[CalendarEvent] = []
     seen: set[str] = set()
-    for node in _event_nodes(soup):
+    nodes = _event_nodes(soup)
+    LOGGER.info("Found %d raw event nodes", len(nodes))
+    for node in nodes:
         try:
             event = _parse_event(node, base_url, now)
             if event.event_id in seen:
@@ -213,4 +214,5 @@ def parse_calendar_html(
             events.append(event)
         except ValueError as exc:
             LOGGER.warning("Skipping malformed event %s: %s", node.get("data-event-id", "unknown"), exc)
+    LOGGER.info("Parsed %d events", len(events))
     return events
