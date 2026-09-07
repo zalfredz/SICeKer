@@ -16,10 +16,19 @@ from .state import StateStore
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
 LOGGER = logging.getLogger(__name__)
 
+# This course appears in the calendar because the account is an assistant, not a student.
+EXCLUDED_COURSE_NAMES = frozenset({"Kalkulus 1 (A,B,C,D,E,F,G,H) Gasal 2026/2027"})
+
 
 def upcoming_events(events: list[CalendarEvent], now: datetime) -> list[CalendarEvent]:
     return sorted(
-        (event for event in events if event.deadline and event.deadline > now),
+        (
+            event
+            for event in events
+            if event.deadline
+            and event.deadline > now
+            and event.course_name not in EXCLUDED_COURSE_NAMES
+        ),
         key=lambda event: event.deadline,
     )
 

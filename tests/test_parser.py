@@ -79,7 +79,8 @@ def test_parses_event_course_links_titles_deadlines_and_multiple_events() -> Non
 
 def test_upcoming_sorting_and_today_filter() -> None:
     upcoming = upcoming_events(parsed_events(), NOW)
-    assert len(upcoming) == 6
+    assert len(upcoming) == 5
+    assert "112209" not in [event.event_id for event in upcoming]
     assert [event.event_id for event in deadlines_today(upcoming, NOW)] == ["112207", "112208", "112211"]
 
 
@@ -87,7 +88,7 @@ def test_sorting_uses_deadline_not_html_input_order() -> None:
     events = parsed_events()
     shuffled = [events[4], events[1], events[5], events[0], events[3], events[2]]
     upcoming = upcoming_events(shuffled, NOW)
-    assert [event.event_id for event in upcoming] == ["112207", "112208", "112211", "112212", "112209", "112213"]
+    assert [event.event_id for event in upcoming] == ["112207", "112208", "112211", "112212", "112213"]
     today = deadlines_today(list(reversed(upcoming)), NOW)
     assert today[0].event_id == "112207"
     assert {event.event_id for event in today[1:]} == {"112208", "112211"}
