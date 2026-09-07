@@ -34,9 +34,9 @@ Semua deadline dan logika tanggal menggunakan timezone `Asia/Jakarta` (WIB).
 
 | WIB | Pesan yang diperbarui |
 | --- | --- |
-| 00.00 | 📚 JADWAL TUGAS |
-| 10.00 | 🚨 DEADLINE HARI INI |
-| 12.00 | 📚 JADWAL TUGAS |
+| 00.07 | 📚 JADWAL TUGAS |
+| 10.07 | 🚨 DEADLINE HARI INI |
+| 12.07 | 📚 JADWAL TUGAS |
 
 Jika salah satu pesan bot dihapus dari Discord, bot akan membuat pengganti secara otomatis pada update berikutnya dan memperbarui `state.json`.
 
@@ -64,7 +64,7 @@ Tulis nama seperti yang tampil di Discord. Prefix administratif seperti `[Reg]` 
 
 ### Mengubah jadwal
 
-GitHub Actions memakai UTC. Bila waktu workflow diubah di `.github/workflows/notifier.yml`, sesuaikan juga fungsi `scheduled_update_kind()` di `bot/main.py`; fungsi tersebut menentukan apakah sebuah run memperbarui jadwal atau deadline hari ini.
+GitHub Actions memakai UTC dan scheduler bersama dapat terlambat, terutama pada menit `00`. Karena itu workflow memakai menit `07`. Bila waktu workflow diubah di `.github/workflows/notifier.yml`, sesuaikan juga map `SCHEDULE_UPDATE_KINDS` di `bot/main.py`; map tersebut menentukan apakah cron tersebut memperbarui jadwal atau deadline hari ini.
 
 ## Menjalankan manual
 

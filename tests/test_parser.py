@@ -7,6 +7,7 @@ from bot.main import (
     deadlines_today,
     enabled,
     main as run_main,
+    scheduled_update_kind,
     send_tester_notifications,
     update_schedule,
     upcoming_events,
@@ -248,6 +249,35 @@ def test_tester_mode_creates_preview_without_state_writes(monkeypatch) -> None:
     assert len(sent) == 2
     assert sent[0]["embeds"][0]["title"] == "📚 JADWAL TUGAS"
     assert sent[1]["embeds"][0]["title"] == "🚨 DEADLINE HARI INI"
+
+
+def test_scheduled_update_kind_comes_from_triggering_cron() -> None:
+    assert scheduled_update_kind("7 17 * * *") == "schedule"
+    assert scheduled_update_kind("7 3 * * *") == "deadline"
+    assert scheduled_update_kind("7 5 * * *") == "schedule"
+    assert scheduled_update_kind(None) is None
+    assert scheduled_update_kind("0 17 * * *") is None
+
+
+def test_scheduled_run_uses_cron_trigger_not_delayed_runner_time(monkeypatch, tmp_path: Path) -> None:
+    state_path = tmp_path / "state.json"
+    state_path.write_text('{"active": true, "schedule_message_id": "schedule-id"}', encoding="utf-8")
+    monkeypatch.setenv("STATE_FILE", str(state_path))
+    monkeypatch.setenv("TESTER", "OFF")
+    monkeypatch.setenv("ACTIVATE", "OFF")
+    monkeypatch.setenv("SCHEDULE_TRIGGER", "7 17 * * *")
+    monkeypatch.setenv("DISCORD_WEBHOOK_URL", "https://example.test/webhook")
+    monkeypatch.setattr("bot.main.fetch_upcoming", lambda _now: [])
+
+    updated: list[str] = []
+    monkeypatch.setattr("bot.main.update_schedule", lambda *_args: updated.append("schedule"))
+    monkeypatch.setattr(
+        "bot.main.update_deadline",
+        lambda *_args: (_ for _ in ()).throw(AssertionError("wrong update")),
+    )
+
+    run_main()
+    assert updated == ["schedule"]
 
 
 def test_inactive_bot_skips_fetch_and_discord(monkeypatch, tmp_path: Path) -> None:

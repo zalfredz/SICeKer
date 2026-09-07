@@ -51,14 +51,20 @@ def enabled(name: str, value: str | None) -> bool:
     return normalized == "ON"
 
 
-def scheduled_update_kind(now: datetime) -> str | None:
-    """The workflow cron only uses these exact WIB hours."""
-    hour = now.astimezone(WIB).hour
-    if hour in {0, 12}:
-        return "schedule"
-    if hour == 10:
-        return "deadline"
-    return None
+SCHEDULE_UPDATE_KINDS = {
+    "7 17 * * *": "schedule",  # 00.07 WIB
+    "7 3 * * *": "deadline",  # 10.07 WIB
+    "7 5 * * *": "schedule",  # 12.07 WIB
+}
+
+
+def scheduled_update_kind(schedule_trigger: str | None) -> str | None:
+    """Return the update type from GitHub's triggering cron expression.
+
+    GitHub-hosted runners can start late, so the runner's current clock must
+    not decide which scheduled update is due.
+    """
+    return SCHEDULE_UPDATE_KINDS.get((schedule_trigger or "").strip())
 
 
 def fetch_upcoming(now: datetime) -> list[CalendarEvent]:
@@ -175,9 +181,9 @@ def main() -> None:
         LOGGER.info("Bot inactive. Skipping scheduled update.")
         return
 
-    kind = scheduled_update_kind(now)
+    kind = scheduled_update_kind(os.environ.get("SCHEDULE_TRIGGER"))
     if kind is None:
-        LOGGER.info("No scheduled update for the current WIB hour.")
+        LOGGER.info("No scheduled update trigger. Skipping manual production update.")
         return
 
     upcoming = fetch_upcoming(now)

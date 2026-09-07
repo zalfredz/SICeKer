@@ -2,11 +2,12 @@ name: SCELE Assignments Checker
 
 on:
   schedule:
-    # 05:00 UTC = 12.00 WIB; 17:00 UTC = 00.00 WIB on the next local day.
-    - cron: "0 5 * * *"
-    - cron: "0 17 * * *"
-    # 03:00 UTC = 10.00 WIB, for the persistent deadline-today message.
-    - cron: "0 3 * * *"
+    # Avoid :00, when GitHub's shared scheduler is busiest.
+    # 05:07 UTC = 12.07 WIB; 17:07 UTC = 00.07 WIB on the next local day.
+    - cron: "7 5 * * *"
+    - cron: "7 17 * * *"
+    # 03:07 UTC = 10.07 WIB, for the persistent deadline-today message.
+    - cron: "7 3 * * *"
   workflow_dispatch:
     inputs:
       activate:
@@ -58,6 +59,8 @@ jobs:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           ACTIVATE: ${{ inputs.activate || 'OFF' }}
           TESTER: ${{ inputs.tester || 'OFF' }}
+          # Keeps the intended update type even when the runner starts late.
+          SCHEDULE_TRIGGER: ${{ github.event.schedule }}
         run: python -m bot.main
 
       - name: Persist notification state
