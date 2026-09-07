@@ -176,7 +176,7 @@ def test_thirty_upcoming_events_are_split_across_embeds_without_loss() -> None:
 def test_embed_payloads_are_plain_task_first_text() -> None:
     upcoming = upcoming_events(parsed_events(), NOW)
     schedule = schedule_payload(upcoming)
-    assert schedule["username"] == "Rachel"
+    assert schedule["username"] == "Chloe - ALz Reminder"
     assert "avatar_url" not in schedule
     schedule_embed = schedule["embeds"][0]
     assert schedule_embed["title"] == "📚 JADWAL TUGAS"
@@ -186,7 +186,7 @@ def test_embed_payloads_are_plain_task_first_text() -> None:
     assert first_field["value"] == (
         "Pengantar Sistem Operasi (A,B) Gasal 2026/2027\n"
         "Deadline: **Senin, 7 September 2026, Pukul 23.55**\n"
-        "[Buka Tugas](https://scele.cs.ui.ac.id/mod/assign/view.php?id=221440)"
+        "[Buka Tugas](https://scele.cs.ui.ac.id/mod/assign/view.php?id=221440)\n\u200b"
     )
     assert "Informasi Tugas" not in first_field["value"]
     assert "Format pengumpulan" not in first_field["value"]

@@ -64,6 +64,10 @@ pytest
 
 `.env` diabaikan Git dan tidak boleh di-commit. Tidak ada avatar URL yang digunakan oleh bot.
 
+## Mengecualikan course dari notifikasi
+
+Atur set `UN_NOTIF` di `bot/main.py` bila ada course yang muncul di kalender tetapi tidak ingin ditampilkan, misalnya saat akun juga menjadi asdos. Masukkan nama course setelah prefix `[Reg]` atau `[SI.Reg]` dihapus oleh parser.
+
 ## GitHub Secrets dan state
 
 Tambahkan repository secrets berikut melalui **Settings → Secrets and variables → Actions**:

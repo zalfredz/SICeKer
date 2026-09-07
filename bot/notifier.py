@@ -59,7 +59,8 @@ def task_field(event: CalendarEvent) -> dict[str, object]:
         lines.append(f"[Buka Tugas]({activity_url})")
     return {
         "name": f"**{_truncate(_plain_embed_text(event.assignment_title), 252)}**",
-        "value": _truncate("\n".join(lines), 1024),
+        # A zero-width space preserves one blank visual line between Discord fields.
+        "value": _truncate("\n".join(lines) + "\n\u200b", 1024),
         "inline": False,
     }
 

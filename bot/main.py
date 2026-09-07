@@ -16,8 +16,11 @@ from .state import StateStore
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
 LOGGER = logging.getLogger(__name__)
 
-# This course appears in the calendar because the account is an assistant, not a student.
-EXCLUDED_COURSE_NAMES = frozenset({"Kalkulus 1 (A,B,C,D,E,F,G,H) Gasal 2026/2027"})
+# Manual notification exclusions. Add normalized course names here as needed.
+# The parser removes prefixes such as [Reg] and [SI.Reg] before this comparison.
+UN_NOTIF = {
+    "Kalkulus 1 (A,B,C,D,E,F,G,H) Gasal 2026/2027",
+}
 
 
 def upcoming_events(events: list[CalendarEvent], now: datetime) -> list[CalendarEvent]:
@@ -27,7 +30,7 @@ def upcoming_events(events: list[CalendarEvent], now: datetime) -> list[Calendar
             for event in events
             if event.deadline
             and event.deadline > now
-            and event.course_name not in EXCLUDED_COURSE_NAMES
+            and event.course_name not in UN_NOTIF
         ),
         key=lambda event: event.deadline,
     )
