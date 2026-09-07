@@ -5,8 +5,18 @@ on:
     # 05:00 UTC = 12.00 WIB; 17:00 UTC = 00.00 WIB on the next local day.
     - cron: "0 5 * * *"
     - cron: "0 17 * * *"
+    # 03:00 UTC = 10.00 WIB, for the persistent deadline-today message.
+    - cron: "0 3 * * *"
   workflow_dispatch:
     inputs:
+      activate:
+        description: "Activate the bot once and create its two persistent Discord messages"
+        required: false
+        default: "OFF"
+        type: choice
+        options:
+          - "OFF"
+          - "ON"
       tester:
         description: "TESTER mode: sends production-format test notifications without changing state"
         required: false
@@ -46,7 +56,7 @@ jobs:
           SCELE_USERNAME: ${{ secrets.SCELE_USERNAME }}
           SCELE_PASSWORD: ${{ secrets.SCELE_PASSWORD }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          DISCORD_AVATAR_URL: ${{ secrets.DISCORD_AVATAR_URL }}
+          ACTIVATE: ${{ inputs.activate || 'OFF' }}
           TESTER: ${{ inputs.tester || vars.TESTER || 'OFF' }}
         run: python -m bot.main
 

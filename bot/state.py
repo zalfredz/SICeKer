@@ -1,10 +1,9 @@
-"""JSON notification state persisted by a GitHub Actions commit."""
+"""Small, versioned state for the two persistent Discord messages."""
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import cast
 
 
 class StateError(RuntimeError):
@@ -14,11 +13,19 @@ class StateError(RuntimeError):
 class StateStore:
     def __init__(self, path: str | Path) -> None:
         self.path = Path(path)
-        self.data: dict[str, object] = {}
+        self.data: dict[str, object] = self._default()
+
+    @staticmethod
+    def _default() -> dict[str, object]:
+        return {
+            "active": False,
+            "activated_at": None,
+            "schedule_message_id": None,
+            "deadline_message_id": None,
+        }
 
     def load(self) -> None:
         if not self.path.exists():
-            self.data = {"schedule_last_sent": None, "events": {}}
             return
         try:
             loaded = json.loads(self.path.read_text(encoding="utf-8"))
@@ -26,31 +33,35 @@ class StateStore:
             raise StateError(f"Could not read state file {self.path}: {exc}") from exc
         if not isinstance(loaded, dict):
             raise StateError(f"State file {self.path} must contain a JSON object.")
-        events = loaded.get("events", {})
-        self.data = {
-            "schedule_last_sent": loaded.get("schedule_last_sent"),
-            "events": events if isinstance(events, dict) else {},
-        }
+        self.data = self._default()
+        self.data["active"] = loaded.get("active") is True
+        for key in ("activated_at", "schedule_message_id", "deadline_message_id"):
+            value = loaded.get(key)
+            self.data[key] = str(value) if value is not None else None
 
-    def schedule_sent_for(self, slot: str) -> bool:
-        return self.data.get("schedule_last_sent") == slot
+    @property
+    def active(self) -> bool:
+        return self.data["active"] is True
 
-    def mark_schedule_sent(self, slot: str) -> None:
-        self.data["schedule_last_sent"] = slot
+    @property
+    def schedule_message_id(self) -> str | None:
+        value = self.data.get("schedule_message_id")
+        return str(value) if value is not None else None
 
-    def deadline_today_sent(self, event_id: str, date: str) -> bool:
-        event = self._events().get(event_id, {})
-        return isinstance(event, dict) and event.get("deadline_today_sent") == date
+    @property
+    def deadline_message_id(self) -> str | None:
+        value = self.data.get("deadline_message_id")
+        return str(value) if value is not None else None
 
-    def mark_deadline_today_sent(self, event_id: str, date: str) -> None:
-        self._events().setdefault(event_id, {})["deadline_today_sent"] = date
+    def set_schedule_message_id(self, message_id: str) -> None:
+        self.data["schedule_message_id"] = message_id
 
-    def _events(self) -> dict[str, dict[str, str]]:
-        events = self.data.get("events")
-        if not isinstance(events, dict):
-            events = {}
-            self.data["events"] = events
-        return cast(dict[str, dict[str, str]], events)
+    def set_deadline_message_id(self, message_id: str) -> None:
+        self.data["deadline_message_id"] = message_id
+
+    def activate(self, activated_at: str) -> None:
+        self.data["active"] = True
+        self.data["activated_at"] = activated_at
 
     def save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)

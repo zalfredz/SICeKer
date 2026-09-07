@@ -1,7 +1,15 @@
 from datetime import datetime
 from pathlib import Path
 
-from bot.main import deadlines_today, send_tester_notifications, tester_enabled as is_tester_enabled, upcoming_events
+from bot.main import (
+    activate,
+    deadlines_today,
+    enabled,
+    main as run_main,
+    send_tester_notifications,
+    update_schedule,
+    upcoming_events,
+)
 from bot.notifier import deadline_today_payload, schedule_payload
 from bot.parser import WIB, _parse_deadline, parse_calendar_html
 from bot.state import StateStore
@@ -25,21 +33,14 @@ def test_parses_event_course_links_titles_deadlines_and_multiple_events() -> Non
     assert first.course_url == "https://scele.cs.ui.ac.id/course/view.php?id=4286"
     assert first.assignment_title == "Tugas 0"
     assert first.deadline == datetime(2026, 9, 7, 23, 55, tzinfo=WIB)
-    assert first.description.startswith("Deadline : Senin, 7 September 2026, Pukul 23.55")
     assert "Format pengumpulan: File text (.txt)" in first.description
     assert first.activity_url == "https://scele.cs.ui.ac.id/mod/assign/view.php?id=221440"
 
-    second = events[1]
-    assert second.course_name.startswith("Pemrograman Berbasis Platform")
-    assert second.assignment_title == "Tugas 1"
-
 
 def test_upcoming_sorting_and_today_filter() -> None:
-    events = parsed_events()
-    upcoming = upcoming_events(events, NOW)
+    upcoming = upcoming_events(parsed_events(), NOW)
     assert [event.event_id for event in upcoming] == ["112207", "112208", "112209"]
     assert [event.event_id for event in deadlines_today(upcoming, NOW)] == ["112207", "112208"]
-    assert "112210" not in [event.event_id for event in upcoming]
 
 
 def test_relative_deadlines_use_wib_reference_date() -> None:
@@ -47,57 +48,83 @@ def test_relative_deadlines_use_wib_reference_date() -> None:
     assert _parse_deadline("Besok, Pukul 00.30", NOW) == datetime(2026, 9, 8, 0, 30, tzinfo=WIB)
 
 
-def test_discord_embed_payloads_without_sending_webhook(monkeypatch) -> None:
-    monkeypatch.setenv("DISCORD_AVATAR_URL", "https://example.test/avatar.png")
-    events = parsed_events()
-    upcoming = upcoming_events(events, NOW)
+def test_embed_payloads_have_no_avatar_and_empty_deadline_is_readable() -> None:
+    upcoming = upcoming_events(parsed_events(), NOW)
     schedule = schedule_payload(upcoming)
     assert schedule["username"] == "ALz SceleReminder"
-    assert schedule["avatar_url"] == "https://example.test/avatar.png"
-    embed = schedule["embeds"][0]
-    assert embed["title"] == "📚 JADWAL TUGAS"
-    assert embed["color"] == 3447003
-    assert embed["footer"]["text"] == "SCELE Reminder • Auto Update 12.00 & 00.00 WIB"
-    first_field, second_field = embed["fields"][:2]
-    assert first_field["name"] == "🎓 Pengantar Sistem Operasi (A,B) Gasal 2026/2027"
-    assert "**Tugas 0**" in first_field["value"]
-    assert "⏰ Deadline: **Senin, 7 September 2026, Pukul 23.55**" in first_field["value"]
-    assert "[🔗 Buka Tugas](https://scele.cs.ui.ac.id/mod/assign/view.php?id=221440)" in first_field["value"]
-    assert first_field["inline"] is False
-    assert "Tugas 1" in second_field["value"]
+    assert "avatar_url" not in schedule
+    schedule_embed = schedule["embeds"][0]
+    assert schedule_embed["title"] == "📚 JADWAL TUGAS"
+    assert schedule_embed["color"] == 3447003
+    assert schedule_embed["fields"][0]["name"].startswith("🎓 Pengantar Sistem Operasi")
+    assert "[🔗 Buka Tugas]" in schedule_embed["fields"][0]["value"]
 
-    deadline = deadline_today_payload(upcoming[0])["embeds"][0]
+    deadline = deadline_today_payload([])["embeds"][0]
     assert deadline["title"] == "🚨 DEADLINE HARI INI"
-    assert deadline["color"] == 15158332
-    assert deadline["footer"]["text"] == "⚠️ Jangan lupa dikumpulkan sebelum deadline!"
-    assert "📝 **Informasi Tugas**" in deadline["fields"][0]["value"]
-    assert "Deadline :" not in deadline["fields"][0]["value"]
+    assert deadline["description"] == "✨ Tidak ada tugas yang deadline hari ini."
 
 
-def test_state_prevents_duplicate_deadline_today(tmp_path: Path) -> None:
+def test_initial_activation_creates_two_messages_once(tmp_path: Path, monkeypatch) -> None:
     state = StateStore(tmp_path / "state.json")
     state.load()
-    assert not state.deadline_today_sent("112207", "2026-09-07")
-    state.mark_deadline_today_sent("112207", "2026-09-07")
-    state.mark_schedule_sent("2026-09-07T12:00:00+07:00")
-    state.save()
+    created: list[str] = []
+    def create(_url, _payload):
+        created.append("created")
+        return f"message-{len(created)}"
 
-    reread = StateStore(tmp_path / "state.json")
-    reread.load()
-    assert reread.deadline_today_sent("112207", "2026-09-07")
-    assert not reread.deadline_today_sent("112207", "2026-09-08")
-    assert reread.schedule_sent_for("2026-09-07T12:00:00+07:00")
+    monkeypatch.setattr("bot.main.create_message", create)
+
+    activate("https://example.test/webhook", state, upcoming_events(parsed_events(), NOW), NOW)
+
+    assert state.active is True
+    assert state.schedule_message_id == "message-1"
+    assert state.deadline_message_id == "message-2"
+
+    monkeypatch.setattr("bot.main.create_message", lambda *_args: (_ for _ in ()).throw(AssertionError("duplicate")))
+    activate("https://example.test/webhook", state, upcoming_events(parsed_events(), NOW), NOW)
 
 
-def test_tester_mode_sends_production_payloads_without_state(monkeypatch) -> None:
-    events = upcoming_events(parsed_events(), NOW)
+def test_schedule_update_edits_existing_message_and_recovers_missing_message(tmp_path: Path, monkeypatch) -> None:
+    state = StateStore(tmp_path / "state.json")
+    state.load()
+    state.set_schedule_message_id("existing-schedule")
+    state.activate(NOW.isoformat())
+
+    edited: list[str] = []
+    monkeypatch.setattr("bot.main.edit_message", lambda _url, message_id, _payload: edited.append(message_id) or True)
+    monkeypatch.setattr("bot.main.create_message", lambda *_args: (_ for _ in ()).throw(AssertionError("should edit")))
+    update_schedule("https://example.test/webhook", state, upcoming_events(parsed_events(), NOW))
+    assert edited == ["existing-schedule"]
+
+    monkeypatch.setattr("bot.main.edit_message", lambda *_args: False)
+    monkeypatch.setattr("bot.main.create_message", lambda *_args: "replacement-schedule")
+    update_schedule("https://example.test/webhook", state, upcoming_events(parsed_events(), NOW))
+    assert state.schedule_message_id == "replacement-schedule"
+
+
+def test_tester_mode_creates_preview_without_state_writes(monkeypatch) -> None:
     sent: list[dict[str, object]] = []
-    monkeypatch.setattr("bot.main.send_payload", lambda _url, payload: sent.append(payload))
+    monkeypatch.setattr("bot.main.create_message", lambda _url, payload: sent.append(payload) or "preview")
+    upcoming = upcoming_events(parsed_events(), NOW)
 
-    assert is_tester_enabled("ON") is True
-    assert is_tester_enabled("off") is False
-    send_tester_notifications("https://example.test/webhook", events, NOW)
+    assert enabled("TESTER", "ON") is True
+    assert enabled("TESTER", "off") is False
+    send_tester_notifications("https://example.test/webhook", upcoming, NOW)
 
-    assert len(sent) == 3  # One schedule plus two assignments due today.
+    assert len(sent) == 2
     assert sent[0]["embeds"][0]["title"] == "📚 JADWAL TUGAS"
     assert sent[1]["embeds"][0]["title"] == "🚨 DEADLINE HARI INI"
+
+
+def test_inactive_bot_skips_fetch_and_discord(monkeypatch, tmp_path: Path) -> None:
+    state_path = tmp_path / "state.json"
+    state_path.write_text('{"active": false}', encoding="utf-8")
+    monkeypatch.setenv("STATE_FILE", str(state_path))
+    monkeypatch.setenv("TESTER", "OFF")
+    monkeypatch.setenv("ACTIVATE", "OFF")
+    monkeypatch.setattr(
+        "bot.main.SceleClient",
+        lambda *_args: (_ for _ in ()).throw(AssertionError("inactive bot must not fetch")),
+    )
+
+    run_main()

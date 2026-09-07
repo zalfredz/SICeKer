@@ -1,8 +1,7 @@
-"""Cute, compact Discord embed payloads for SCELE reminders."""
+"""Discord webhook embeds and create/edit helpers for persistent messages."""
 
 from __future__ import annotations
 
-import os
 import re
 from datetime import datetime
 
@@ -25,14 +24,6 @@ def format_wib(deadline: datetime) -> str:
     return f"{_DAYS[value.weekday()]}, {value.day} {_MONTHS[value.month - 1]} {value.year}, Pukul {value:%H.%M}"
 
 
-def _identity() -> dict[str, object]:
-    payload: dict[str, object] = {"username": BOT_USERNAME}
-    avatar_url = os.environ.get("DISCORD_AVATAR_URL")
-    if avatar_url:
-        payload["avatar_url"] = avatar_url
-    return payload
-
-
 def _additional_information(description: str | None) -> str | None:
     if not description:
         return None
@@ -51,7 +42,6 @@ def _truncate(value: str, limit: int) -> str:
 def task_field(event: CalendarEvent, include_information: bool = False) -> dict[str, object]:
     if not event.deadline:
         raise ValueError(f"Event {event.event_id} has no deadline")
-    course_name = _truncate(event.course_name or "Mata kuliah tidak diketahui", 253)
     lines = [
         f"**{event.assignment_title}**",
         f"⏰ Deadline: **{format_wib(event.deadline)}**",
@@ -63,46 +53,80 @@ def task_field(event: CalendarEvent, include_information: bool = False) -> dict[
         if information:
             lines.extend(("", "📝 **Informasi Tugas**", information))
     return {
-        "name": f"🎓 {course_name}",
+        "name": f"🎓 {_truncate(event.course_name or 'Mata kuliah tidak diketahui', 253)}",
         "value": _truncate("\n".join(lines), 1024),
         "inline": False,
     }
 
 
+def _embed(title: str, color: int, footer: str, fields: list[dict[str, object]], empty_text: str) -> dict[str, object]:
+    embed: dict[str, object] = {"title": title, "color": color, "footer": {"text": footer}}
+    if fields:
+        embed["fields"] = fields
+    else:
+        embed["description"] = empty_text
+    return embed
+
+
+def _payload(embed: dict[str, object]) -> dict[str, object]:
+    return {"username": BOT_USERNAME, "embeds": [embed]}
+
+
 def schedule_payload(events: list[CalendarEvent]) -> dict[str, object]:
     if len(events) > 25:
         raise RuntimeError("Schedule contains more than Discord's 25 fields per embed limit.")
-    embed: dict[str, object] = {
-        "title": "📚 JADWAL TUGAS",
-        "color": SCHEDULE_COLOR,
-        "footer": {"text": "SCELE Reminder • Auto Update 12.00 & 00.00 WIB"},
-    }
-    if events:
-        embed["fields"] = [task_field(event) for event in events]
-    else:
-        embed["description"] = "Tidak ada tugas yang masih memiliki deadline."
-    payload = _identity()
-    payload["embeds"] = [embed]
-    return payload
+    return _payload(_embed(
+        "📚 JADWAL TUGAS",
+        SCHEDULE_COLOR,
+        "SCELE Reminder • Auto Update 00.00 & 12.00 WIB",
+        [task_field(event) for event in events],
+        "✨ Tidak ada tugas yang ditemukan.",
+    ))
 
 
-def deadline_today_payload(event: CalendarEvent) -> dict[str, object]:
-    payload = _identity()
-    payload["embeds"] = [{
-        "title": "🚨 DEADLINE HARI INI",
-        "color": DEADLINE_TODAY_COLOR,
-        "fields": [task_field(event, include_information=True)],
-        "footer": {"text": "⚠️ Jangan lupa dikumpulkan sebelum deadline!"},
-    }]
-    return payload
+def deadline_today_payload(events: list[CalendarEvent]) -> dict[str, object]:
+    if len(events) > 25:
+        raise RuntimeError("Deadline list contains more than Discord's 25 fields per embed limit.")
+    return _payload(_embed(
+        "🚨 DEADLINE HARI INI",
+        DEADLINE_TODAY_COLOR,
+        "⚠️ Jangan lupa dikumpulkan sebelum deadline!",
+        [task_field(event, include_information=True) for event in events],
+        "✨ Tidak ada tugas yang deadline hari ini.",
+    ))
 
 
-def send_payload(webhook_url: str, payload: dict[str, object]) -> None:
+def _raise_delivery_error(response: requests.Response) -> None:
     try:
-        response = requests.post(webhook_url, json=payload, timeout=20)
         response.raise_for_status()
     except requests.RequestException as exc:
-        # The webhook URL contains its secret token; never interpolate it into logs.
         status = getattr(exc.response, "status_code", None)
         detail = f" (HTTP {status})" if status else ""
         raise RuntimeError(f"Discord webhook delivery failed{detail}: {exc.__class__.__name__}") from exc
+
+
+def create_message(webhook_url: str, payload: dict[str, object]) -> str:
+    """Create a webhook message and return its Discord message ID."""
+    separator = "&" if "?" in webhook_url else "?"
+    try:
+        response = requests.post(f"{webhook_url}{separator}wait=true", json=payload, timeout=20)
+    except requests.RequestException as exc:
+        raise RuntimeError(f"Discord webhook delivery failed: {exc.__class__.__name__}") from exc
+    _raise_delivery_error(response)
+    try:
+        message_id = response.json()["id"]
+    except (TypeError, ValueError, KeyError) as exc:
+        raise RuntimeError("Discord webhook did not return a message ID.") from exc
+    return str(message_id)
+
+
+def edit_message(webhook_url: str, message_id: str, payload: dict[str, object]) -> bool:
+    """Edit an existing message. Return False only when it no longer exists."""
+    try:
+        response = requests.patch(f"{webhook_url}/messages/{message_id}", json=payload, timeout=20)
+    except requests.RequestException as exc:
+        raise RuntimeError(f"Discord webhook delivery failed: {exc.__class__.__name__}") from exc
+    if response.status_code == 404:
+        return False
+    _raise_delivery_error(response)
+    return True

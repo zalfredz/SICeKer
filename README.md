@@ -1,37 +1,41 @@
 # SCELE Assignments Checker
 
-Bot Python untuk mengambil upcoming assignment SCELE UI dan mengirimkannya ke Discord melalui webhook. Semua deadline diproses dengan timezone `Asia/Jakarta` (WIB).
+Bot scheduled GitHub Actions yang mengambil assignment upcoming dari SCELE UI lalu mempertahankan dua pesan Discord yang sama:
 
-## Cara kerja
+- `📚 JADWAL TUGAS`
+- `🚨 DEADLINE HARI INI`
 
-1. Bot membuka kalender upcoming SCELE menggunakan satu HTTP session.
-2. Jika SCELE meminta login, bot menjalankan form login Moodle dengan `logintoken` dan credential dari environment variable.
-3. Parser memakai `data-event-id` sebagai ID unik, mengambil course/activity URL, dan memprioritaskan deadline lengkap pada description. Prefix `[SI.Reg]`/`[Reg]` serta akhiran `is due` dihapus untuk tampilan Discord.
-4. Event tanpa deadline maupun deadline yang sudah lewat tidak masuk jadwal.
-5. Pada setiap jadwal tetap, bot mengirim satu message **JADWAL TUGAS**, diurutkan dari deadline terdekat.
-6. Sesudahnya, setiap assignment yang deadline-nya hari itu menerima satu message **DEADLINE HARI INI**. Informasi description selain baris deadline ditampilkan hanya bila ada.
+Bot bukan proses Discord yang hidup 24 jam. Setelah code di-push, GitHub Actions menjalankan script di runner GitHub dan laptop tidak perlu menyala.
 
-## Jadwal GitHub Actions
+## Activation pertama kali
 
-Workflow memakai UTC karena GitHub Actions tidak memakai WIB:
+State awal pada `state.json` adalah nonaktif. Jalankan **Actions → SCELE Assignments Checker → Run workflow**, pilih `activate: ON`, lalu jalankan workflow.
 
-| Cron UTC | Waktu WIB | Notifikasi |
+Bot akan mengambil data SCELE, membuat dua embed Discord, menyimpan dua message ID, lalu mengubah `active` menjadi `true`. Embed deadline tetap dibuat bila tidak ada deadline hari ini, dengan teks `✨ Tidak ada tugas yang deadline hari ini.`
+
+Jika activation gagal pada scraping atau Discord, `active` tidak akan menjadi `true`. ID pesan yang sudah berhasil dibuat tetap disimpan agar activation berikutnya dapat melanjutkan tanpa membuat pesan duplikat. Menjalankan activation saat sudah aktif hanya menulis log dan tidak membuat pesan baru.
+
+## Jadwal otomatis
+
+Semua keputusan waktu memakai `Asia/Jakarta` di Python.
+
+| Cron UTC | WIB | Aksi |
 | --- | --- | --- |
-| `0 5 * * *` | 12.00 WIB | JADWAL TUGAS, lalu deadline hari ini |
-| `0 17 * * *` | 00.00 WIB hari berikutnya | JADWAL TUGAS, lalu deadline hari ini |
+| `0 17 * * *` | 00.00 | Edit pesan `📚 JADWAL TUGAS` |
+| `0 3 * * *` | 10.00 | Edit pesan `🚨 DEADLINE HARI INI` |
+| `0 5 * * *` | 12.00 | Edit pesan `📚 JADWAL TUGAS` |
 
-Workflow juga dapat dijalankan melalui **Actions → SCELE Discord Notifier → Run workflow**.
+Scheduled run saat bot masih inactive hanya menulis `Bot inactive. Skipping scheduled update.` Tidak ada scraping atau pesan Discord sampai activation manual berhasil.
+
+Jika salah satu pesan persistent dihapus manual, Discord akan mengembalikan 404 ketika bot mencoba PATCH. Bot otomatis membuat pesan pengganti, menyimpan message ID baru ke `state.json`, dan workflow me-commit state tersebut.
 
 ## Tester mode
 
-Konfigurasi sederhana memakai `TESTER=ON` atau `TESTER=OFF`.
+Mode lama `TESTER=ON` tetap tersedia untuk preview manual. Jalankan **Run workflow** dengan `tester: ON`; bot mengambil data SCELE asli dan membuat dua pesan preview dengan embed production yang sama. Tester tidak mengubah `state.json`, tidak mengaktifkan bot, dan tidak mengganggu update production berikutnya.
 
-- `OFF` adalah production: hanya run terjadwal pada 12.00 dan 00.00 WIB yang mengirim serta memperbarui `state.json`.
-- `ON` adalah test: jalankan workflow manual, pilih input **tester: ON**, lalu bot segera mengambil data SCELE asli dan mengirim embed dengan format production.
+`activate` dan `tester` tidak boleh sama-sama `ON`.
 
-Tester mengirim schedule terlebih dahulu, kemudian satu embed deadline hari ini untuk setiap tugas yang benar-benar jatuh tempo hari itu. Tester tidak menulis `schedule_last_sent`, tidak menandai `deadline_today_sent`, dan tidak mengubah jadwal production berikutnya. Untuk test lokal, tambahkan `TESTER=ON` di `.env`; sesudah selesai, ubah kembali ke `TESTER=OFF`.
-
-## Menjalankan lokal
+## Konfigurasi lokal
 
 Butuh Python 3.11+.
 
@@ -41,63 +45,41 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-Isi file `.env` lokal:
+Salin `.env.example` menjadi `.env`, lalu isi:
 
 ```env
 SCELE_USERNAME=username_scele
 SCELE_PASSWORD=password_scele
 DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
-DISCORD_AVATAR_URL=https://example.com/foto-profil.png
 TESTER=OFF
+ACTIVATE=OFF
 ```
 
-Lalu jalankan:
+Jalankan lokal:
 
 ```powershell
 python -m bot.main
 pytest
 ```
 
-`.env` diabaikan Git dan tidak boleh di-commit. `.env.example` adalah template aman. Environment variable yang sudah ada selalu diprioritaskan daripada nilai `.env`.
+`.env` diabaikan Git dan tidak boleh di-commit. Tidak ada avatar URL yang digunakan oleh bot.
 
-## GitHub Secrets
+## GitHub Secrets dan state
 
-Buka **Settings → Secrets and variables → Actions**, kemudian buat secrets berikut:
+Tambahkan repository secrets berikut melalui **Settings → Secrets and variables → Actions**:
 
-| Secret | Isi |
-| --- | --- |
-| `SCELE_USERNAME` | Username SCELE |
-| `SCELE_PASSWORD` | Password SCELE |
-| `DISCORD_WEBHOOK_URL` | URL Discord webhook |
-| `DISCORD_AVATAR_URL` | URL foto profil bot (opsional) |
+- `SCELE_USERNAME`
+- `SCELE_PASSWORD`
+- `DISCORD_WEBHOOK_URL`
 
-Buat webhook lewat **Discord channel → Edit Channel → Integrations → Webhooks → New Webhook**. URL webhook adalah rahasia dan tidak pernah dicetak oleh bot.
+Workflow memiliki `permissions: contents: write` dan me-commit `state.json` hanya bila berubah. Ini membuat message ID bertahan walaupun runner GitHub bersifat ephemeral. Pastikan repository mengizinkan `GITHUB_TOKEN` untuk read/write contents.
 
-Workflow meng-commit `state.json` setelah pengiriman yang berhasil. Berikan `GITHUB_TOKEN` permission **Read and write permissions** agar state bertahan di runner GitHub Actions berikutnya. State menyimpan slot jadwal terakhir (`00.00` atau `12.00 WIB`) dan tanggal notifikasi deadline per `event_id`, sehingga retry tidak mengirim duplikat.
+## Tampilan Discord
 
-## Format pesan
+Schedule menggunakan embed biru (`3447003`); deadline hari ini menggunakan embed merah (`15158332`). Setiap tugas adalah satu field: course sebagai `🎓` field name, assignment bold, deadline `⏰`, serta link `[🔗 Buka Tugas]`. Parser mempertahankan `event_id`, course/activity URL, description, component, dan type; nama course display menghapus prefix `[SI.Reg]`/`[Reg]`, sedangkan title menghapus akhiran `is due`.
 
-Setiap webhook menggunakan username `ALz SceleReminder`. Jika `DISCORD_AVATAR_URL` tersedia, foto tersebut juga digunakan sebagai avatar webhook. Satu schedule menggunakan satu Discord Embed biru (`3447003`) dan setiap tugas menjadi satu field:
+## Testing dan keterbatasan
 
-```text
-📚 JADWAL TUGAS
+Fixture lokal tidak membutuhkan login atau network. Test mencakup parsing, timezone WIB, sorting, embed kosong, activation, edit persistent message, recovery 404, dan tester mode.
 
-🎓 Nama Mata Kuliah
-**Tugas 0**
-⏰ Deadline: **Senin, 7 September 2026, Pukul 23.55**
-[🔗 Buka Tugas](https://scele.cs.ui.ac.id/mod/assign/view.php?id=221440)
-```
-
-Deadline hari ini menggunakan satu embed merah (`15158332`) berjudul `🚨 DEADLINE HARI INI`, dengan footer pengingat. Description plain-text hanya ditampilkan sebagai `📝 Informasi Tugas` jika berisi informasi selain deadline. Satu schedule dijaga sebagai satu embed/message; Discord membatasi satu embed pada 25 fields, sehingga run akan gagal jelas bila tugas melebihi batas tersebut agar tidak ada tugas yang diam-diam hilang.
-
-## Testing
-
-Fixture lokal di `tests/fixtures/upcoming_calendar.html` tidak memerlukan login atau network. Test mencakup multi-event parsing, course URL, normalisasi title/course, deadline WIB, pengurutan, filter deadline hari ini/event lewat, format payload tanpa mengirim webhook, dan state anti-duplikasi.
-
-```powershell
-pytest
-```
-
-## Authentication dan keterbatasan
-
-Pemeriksaan terhadap URL kalender menunjukkan halaman tersebut mengarah ke form login Moodle dengan `logintoken`, `username`, dan `password`; alur ini didukung lewat Secrets tanpa menyimpan cookie atau token. Bila SCELE kelak mewajibkan CAPTCHA, MFA interaktif, SSO yang tidak dapat diselesaikan dengan form login, atau membatasi IP GitHub-hosted runner, autentikasi otomatis tidak akan kompatibel. Gunakan self-hosted runner yang diizinkan atau akses/API resmi dari pengelola SCELE; jangan menyimpan cookie jangka panjang di repository.
+SCELE saat diperiksa menggunakan form login Moodle dengan `logintoken`, username, dan password. Jika nantinya SCELE memerlukan CAPTCHA, MFA interaktif, SSO khusus, atau memblokir runner GitHub, login otomatis tidak dapat berjalan hanya dengan Secrets. Gunakan self-hosted runner yang diizinkan atau akses resmi dari pengelola SCELE; jangan menyimpan cookie jangka panjang.

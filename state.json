@@ -1,4 +1,6 @@
 {
-  "schedule_last_sent": null,
-  "events": {}
+  "active": false,
+  "activated_at": null,
+  "schedule_message_id": null,
+  "deadline_message_id": null
 }
