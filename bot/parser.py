@@ -86,6 +86,7 @@ def _clean_assignment_title(value: str) -> str:
 
 def _normalise_date_text(raw: str) -> str:
     value = re.sub(r"\bPukul\b", "", raw, flags=re.I)
+    value = re.sub(r"\s*,\s*", ", ", value)
     for indonesian, english in _INDONESIAN_MONTHS.items():
         value = re.sub(rf"\b{indonesian}\b", english, value, flags=re.I)
     return re.sub(r"\b(\d{1,2})\.(\d{2})\b", r"\1:\2", value)
@@ -112,7 +113,11 @@ def _parse_deadline(raw: str | None, now: datetime | None = None) -> datetime | 
 
     value = re.sub(r"^(due|deadline|jatuh tempo)\s*:\s*", "", value, flags=re.I)
     try:
-        parsed = date_parser.parse(value, fuzzy=True)
+        parsed = date_parser.parse(
+            value,
+            fuzzy=True,
+            default=reference.replace(tzinfo=None, second=0, microsecond=0),
+        )
     except (OverflowError, TypeError, ValueError) as exc:
         raise ValueError(f"unrecognised deadline {raw!r}") from exc
     if parsed.tzinfo is None:
@@ -140,6 +145,22 @@ def _description_deadline(description: str | None) -> str | None:
         return None
     match = re.search(r"(?:^|\n)\s*deadline\s*:\s*([^\n]+)", description, flags=re.I)
     return _clean(match.group(1)) if match else None
+
+
+def _visible_deadline(node: Tag) -> str | None:
+    """Read Moodle's visible calendar date, including its unclassed first row."""
+    direct = _first_text(node, [".event-date", ".date", ".deadline", ".due-date", "time"])
+    if direct:
+        return direct
+    for row in node.select(".description.card-body > .row, .description > .row"):
+        text = _clean(row.get_text(" ", strip=True))
+        if text and re.search(
+            r"\b(today|tomorrow|hari ini|besok)\b|\d{1,2}[:.]\d{2}|\d{1,2}\s+[A-Za-z]+|\d{4}-\d{2}-\d{2}",
+            text,
+            flags=re.I,
+        ):
+            return text
+    return None
 
 
 def _parse_event(node: Tag, base_url: str, now: datetime | None) -> CalendarEvent:
@@ -170,9 +191,7 @@ def _parse_event(node: Tag, base_url: str, now: datetime | None) -> CalendarEven
     if not raw_deadline:
         time_node = node.select_one("time[datetime]")
         raw_deadline = time_node.get("datetime") if time_node else None
-    raw_deadline = raw_deadline or _first_text(
-        node, [".event-date", ".date", ".deadline", ".due-date", "time"]
-    )
+    raw_deadline = raw_deadline or _visible_deadline(node)
 
     activity_url = _first_attr(node, ["data-event-url", "data-activity-url"])
     if not activity_url:

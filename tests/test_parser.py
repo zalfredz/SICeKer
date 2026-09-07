@@ -102,6 +102,24 @@ def test_relative_deadlines_use_wib_reference_date() -> None:
     assert _parse_deadline("Besok, Pukul 00.30", NOW) == datetime(2026, 9, 8, 0, 30, tzinfo=WIB)
 
 
+def test_parses_moodle_card_date_rows_without_deadline_description() -> None:
+    html = """
+    <div data-type="event" data-event-id="row-today" data-event-title="Tugas 1 is due" data-event-component="mod_assign">
+      <div class="description card-body"><div class="row"><div class="col-11">Today , 23:59</div></div></div>
+      <a href="/course/view.php?id=1">[Reg] Course 1</a><a href="/mod/assign/view.php?id=1">Buka</a>
+    </div>
+    <div data-type="event" data-event-id="row-date" data-event-title="Quiz closes" data-event-component="mod_quiz">
+      <div class="description card-body"><div class="row"><div class="col-11">Sunday, 13 September , 23:59</div></div></div>
+      <a href="/course/view.php?id=2">[SI.Reg] Course 2</a><a href="/mod/quiz/view.php?id=2">Buka</a>
+    </div>
+    """
+    events = parse_calendar_html(html, now=NOW)
+    assert [(event.assignment_title, event.deadline) for event in events] == [
+        ("Tugas 1", datetime(2026, 9, 7, 23, 59, tzinfo=WIB)),
+        ("Quiz", datetime(2026, 9, 13, 23, 59, tzinfo=WIB)),
+    ]
+
+
 def test_parser_logs_raw_and_parsed_event_counts(caplog) -> None:
     caplog.set_level(logging.INFO, logger="bot.parser")
     parsed_events()
