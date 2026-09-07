@@ -1,5 +1,6 @@
 {
-  "active": false,
-  "schedule_message_id": null,
-  "deadline_message_id": null
+  "activated_at": "2026-09-07T23:02:39.381864+07:00",
+  "active": true,
+  "deadline_message_id": "1546551306775437473",
+  "schedule_message_id": "1546551305315811401"
 }
