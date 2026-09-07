@@ -1,0 +1,62 @@
+name: SCELE Assignments Checker
+
+on:
+  schedule:
+    # 05:00 UTC = 12.00 WIB; 17:00 UTC = 00.00 WIB on the next local day.
+    - cron: "0 5 * * *"
+    - cron: "0 17 * * *"
+  workflow_dispatch:
+    inputs:
+      tester:
+        description: "TESTER mode: sends production-format test notifications without changing state"
+        required: false
+        default: "OFF"
+        type: choice
+        options:
+          - "OFF"
+          - "ON"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: scele-discord-notifier
+  cancel-in-progress: false
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out state
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Check SCELE and notify Discord
+        env:
+          SCELE_USERNAME: ${{ secrets.SCELE_USERNAME }}
+          SCELE_PASSWORD: ${{ secrets.SCELE_PASSWORD }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_AVATAR_URL: ${{ secrets.DISCORD_AVATAR_URL }}
+          TESTER: ${{ inputs.tester || vars.TESTER || 'OFF' }}
+        run: python -m bot.main
+
+      - name: Persist notification state
+        if: always()
+        run: |
+          if ! git diff --quiet -- state.json; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add state.json
+            git commit -m "chore: update notifier state"
+            git push
+          fi

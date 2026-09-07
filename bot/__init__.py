@@ -1,0 +1,1 @@
+"""SCELE Discord notifier package."""
