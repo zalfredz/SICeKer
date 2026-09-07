@@ -52,6 +52,7 @@ def fetch_upcoming(now: datetime) -> list[CalendarEvent]:
     events = parse_calendar_html(html, now=now)
     upcoming = upcoming_events(events, now)
     LOGGER.info("Upcoming %d events", len(upcoming))
+    LOGGER.info("Deadline today: %d", len(deadlines_today(upcoming, now)))
     return upcoming
 
 
@@ -87,7 +88,6 @@ def activate(webhook_url: str, state: StateStore, upcoming: list[CalendarEvent],
         state.save()
 
     due_today = deadlines_today(upcoming, now)
-    LOGGER.info("Deadline today: %d", len(due_today))
     deadline_id = ensure_message(
         webhook_url, state.deadline_message_id, deadline_today_payload(due_today), "deadline"
     )
@@ -109,7 +109,6 @@ def update_schedule(webhook_url: str, state: StateStore, upcoming: list[Calendar
 
 def update_deadline(webhook_url: str, state: StateStore, upcoming: list[CalendarEvent], now: datetime) -> None:
     due_today = deadlines_today(upcoming, now)
-    LOGGER.info("Deadline today: %d", len(due_today))
     message_id = ensure_message(
         webhook_url, state.deadline_message_id, deadline_today_payload(due_today), "deadline"
     )
@@ -123,7 +122,6 @@ def send_tester_notifications(webhook_url: str, upcoming: list[CalendarEvent], n
     LOGGER.info("Sending TEST notification")
     create_message(webhook_url, schedule_payload(upcoming))
     due_today = deadlines_today(upcoming, now)
-    LOGGER.info("Deadline today: %d", len(due_today))
     create_message(webhook_url, deadline_today_payload(due_today))
     LOGGER.info("Test notifications sent successfully")
 

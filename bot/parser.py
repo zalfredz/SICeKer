@@ -202,6 +202,7 @@ def parse_calendar_html(
     soup = BeautifulSoup(html, "html.parser")
     events: list[CalendarEvent] = []
     seen: set[str] = set()
+    malformed = 0
     nodes = _event_nodes(soup)
     LOGGER.info("Found %d raw event nodes", len(nodes))
     for node in nodes:
@@ -213,6 +214,8 @@ def parse_calendar_html(
             seen.add(event.event_id)
             events.append(event)
         except ValueError as exc:
+            malformed += 1
             LOGGER.warning("Skipping malformed event %s: %s", node.get("data-event-id", "unknown"), exc)
     LOGGER.info("Parsed %d events", len(events))
+    LOGGER.info("Skipped %d malformed events", malformed)
     return events

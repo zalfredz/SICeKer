@@ -13,6 +13,7 @@ from .parser import CalendarEvent, WIB
 BOT_USERNAME = "Rachel"
 SCHEDULE_COLOR = 3447003
 DEADLINE_TODAY_COLOR = 15158332
+MAX_FIELDS_PER_EMBED = 25
 _DAYS = ("Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu")
 _MONTHS = (
     "Januari", "Februari", "Maret", "April", "Mei", "Juni",
@@ -76,28 +77,50 @@ def _payload(embed: dict[str, object]) -> dict[str, object]:
     return {"username": BOT_USERNAME, "embeds": [embed]}
 
 
+def _payload_pages(
+    title: str,
+    color: int,
+    footer: str,
+    events: list[CalendarEvent],
+    empty_text: str,
+) -> dict[str, object]:
+    fields = [task_field(event) for event in events]
+    if not fields:
+        return _payload(_embed(title, color, footer, [], empty_text))
+
+    pages = [fields[index:index + MAX_FIELDS_PER_EMBED] for index in range(0, len(fields), MAX_FIELDS_PER_EMBED)]
+    total_pages = len(pages)
+    embeds = [
+        _embed(
+            title if total_pages == 1 else f"{title} ({page_number}/{total_pages})",
+            color,
+            footer,
+            page,
+            empty_text,
+        )
+        for page_number, page in enumerate(pages, start=1)
+    ]
+    return {"username": BOT_USERNAME, "embeds": embeds}
+
+
 def schedule_payload(events: list[CalendarEvent]) -> dict[str, object]:
-    if len(events) > 25:
-        raise RuntimeError("Schedule contains more than Discord's 25 fields per embed limit.")
-    return _payload(_embed(
+    return _payload_pages(
         "📚 JADWAL TUGAS",
         SCHEDULE_COLOR,
         "SCELE Reminder • Auto Update 00.00 & 12.00 WIB",
-        [task_field(event) for event in events],
+        events,
         "✨ Tidak ada tugas yang ditemukan.",
-    ))
+    )
 
 
 def deadline_today_payload(events: list[CalendarEvent]) -> dict[str, object]:
-    if len(events) > 25:
-        raise RuntimeError("Deadline list contains more than Discord's 25 fields per embed limit.")
-    return _payload(_embed(
+    return _payload_pages(
         "🚨 DEADLINE HARI INI",
         DEADLINE_TODAY_COLOR,
         "⚠️ Jangan lupa dikumpulkan sebelum deadline!",
-        [task_field(event) for event in events],
+        events,
         "✨ Tidak ada tugas yang deadline hari ini.",
-    ))
+    )
 
 
 def _raise_delivery_error(response: requests.Response) -> None:

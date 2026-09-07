@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from bot.main import (
@@ -23,9 +23,36 @@ def parsed_events():
     return parse_calendar_html(fixture.read_text(encoding="utf-8"), now=NOW)
 
 
+def generated_calendar_html(
+    count: int,
+    malformed_indexes: set[int] | None = None,
+    past_count: int = 0,
+    today_count: int = 0,
+) -> str:
+    """Create arbitrary-sized calendar markup without production count assumptions."""
+    malformed_indexes = malformed_indexes or set()
+    events: list[str] = []
+    for index in range(count):
+        if index < past_count:
+            deadline = "2026-09-06 23:55"
+        elif index < past_count + today_count:
+            deadline = f"2026-09-07 {10 + index:02d}:55"
+        else:
+            deadline = (NOW + timedelta(days=index + 1)).strftime("%Y-%m-%d 23:55")
+        title = "" if index in malformed_indexes else f' data-event-title="Task {index} is due"'
+        component = "mod_quiz" if index % 2 else "mod_assign"
+        events.append(
+            f'<div data-type="event" data-event-id="dynamic-{index}" data-course-id="{index}"{title} '
+            f'data-event-component="{component}"><a href="/course/view.php?id={index}">[Reg] Course {index}</a>'
+            f'<div class="description"><p>Deadline : {deadline}</p></div>'
+            f'<a href="/mod/assign/view.php?id={index}">Buka tugas</a></div>'
+        )
+    return "<html><body>" + "".join(events) + "</body></html>"
+
+
 def test_parses_event_course_links_titles_deadlines_and_multiple_events() -> None:
     events = parsed_events()
-    assert len(events) >= 6
+    assert len(events) == 6
     assert len({event.event_id for event in events}) == len(events)
     assert [event.assignment_title for event in events] == [
         "Tugas 0",
@@ -66,6 +93,37 @@ def test_parser_logs_raw_and_parsed_event_counts(caplog) -> None:
     parsed_events()
     assert "Found 6 raw event nodes" in caplog.text
     assert "Parsed 6 events" in caplog.text
+    assert "Skipped 0 malformed events" in caplog.text
+
+
+def test_parser_is_dynamic_for_one_six_ten_and_zero_events() -> None:
+    for raw_count in (1, 6, 10, 0):
+        events = parse_calendar_html(generated_calendar_html(raw_count), now=NOW)
+        assert len(events) == raw_count
+
+
+def test_malformed_events_are_skipped_without_stopping_collection(caplog) -> None:
+    caplog.set_level(logging.INFO, logger="bot.parser")
+    events = parse_calendar_html(generated_calendar_html(10, {3, 8}), now=NOW)
+    assert len(events) == 8
+    assert "Found 10 raw event nodes" in caplog.text
+    assert "Skipped 2 malformed events" in caplog.text
+
+
+def test_upcoming_and_today_filters_keep_all_matching_events() -> None:
+    events = parse_calendar_html(generated_calendar_html(10, past_count=3, today_count=4), now=NOW)
+    upcoming = upcoming_events(events, NOW)
+    assert len(upcoming) == 7
+    assert len(deadlines_today(upcoming, NOW)) == 4
+
+
+def test_thirty_upcoming_events_are_split_across_embeds_without_loss() -> None:
+    events = parse_calendar_html(generated_calendar_html(30), now=NOW)
+    payload = schedule_payload(upcoming_events(events, NOW))
+    embeds = payload["embeds"]
+    assert len(embeds) == 2
+    assert [len(embed["fields"]) for embed in embeds] == [25, 5]
+    assert sum(len(embed["fields"]) for embed in embeds) == 30
 
 
 def test_embed_payloads_are_plain_task_first_text() -> None:
