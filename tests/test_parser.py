@@ -51,7 +51,7 @@ def test_relative_deadlines_use_wib_reference_date() -> None:
 def test_embed_payloads_have_no_avatar_and_empty_deadline_is_readable() -> None:
     upcoming = upcoming_events(parsed_events(), NOW)
     schedule = schedule_payload(upcoming)
-    assert schedule["username"] == "ALz SceleReminder"
+    assert schedule["username"] == "Rachel"
     assert "avatar_url" not in schedule
     schedule_embed = schedule["embeds"][0]
     assert schedule_embed["title"] == "📚 JADWAL TUGAS"

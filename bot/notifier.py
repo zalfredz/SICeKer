@@ -8,7 +8,7 @@ import requests
 
 from .parser import CalendarEvent, WIB
 
-BOT_USERNAME = "ALz SceleReminder"
+BOT_USERNAME = "Rachel"
 SCHEDULE_COLOR = 3447003
 DEADLINE_TODAY_COLOR = 15158332
 _DAYS = ("Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu")

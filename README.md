@@ -1,6 +1,6 @@
 # SCELE Assignments Checker
 
-Bot scheduled GitHub Actions yang mengambil assignment upcoming dari SCELE UI lalu mempertahankan dua pesan Discord yang sama:
+Bot scheduled GitHub Actions yang mengambil assignment upcoming dari SCELE UI lalu mempertahankan dua pesan Discord yang sama melalui webhook bernama `Rachel`:
 
 - `📚 JADWAL TUGAS`
 - `🚨 DEADLINE HARI INI`
