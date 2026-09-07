@@ -10,7 +10,7 @@ import requests
 
 from .parser import CalendarEvent, WIB
 
-BOT_USERNAME = "Rachel"
+BOT_USERNAME = "Chloe - ALz Reminder"
 SCHEDULE_COLOR = 3447003
 DEADLINE_TODAY_COLOR = 15158332
 MAX_FIELDS_PER_EMBED = 25
