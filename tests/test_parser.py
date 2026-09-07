@@ -120,6 +120,20 @@ def test_parses_moodle_card_date_rows_without_deadline_description() -> None:
     ]
 
 
+def test_calendar_day_link_timestamp_is_used_before_relative_date_text() -> None:
+    timestamp = int(datetime(2026, 9, 8, 17, 0, tzinfo=WIB).timestamp())
+    html = f"""
+    <div data-type="event" data-event-id="timestamp-event" data-event-title="Checkpoint opens">
+      <div class="description card-body"><div class="row"><div class="col-11">
+        <a href="/calendar/view.php?view=day&amp;time={timestamp}">Tomorrow</a>, 09:00
+      </div></div></div>
+      <a href="/course/view.php?id=1">Course</a><a href="/mod/quiz/view.php?id=1">Buka</a>
+    </div>
+    """
+    event = parse_calendar_html(html, now=NOW)[0]
+    assert event.deadline == datetime(2026, 9, 8, 17, 0, tzinfo=WIB)
+
+
 def test_parser_logs_raw_and_parsed_event_counts(caplog) -> None:
     caplog.set_level(logging.INFO, logger="bot.parser")
     parsed_events()

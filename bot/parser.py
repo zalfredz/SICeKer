@@ -7,7 +7,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Iterable
-from urllib.parse import urljoin
+from urllib.parse import parse_qs, urljoin, urlparse
 from zoneinfo import ZoneInfo
 
 from bs4 import BeautifulSoup, Tag
@@ -163,6 +163,15 @@ def _visible_deadline(node: Tag) -> str | None:
     return None
 
 
+def _calendar_link_timestamp(node: Tag) -> str | None:
+    """Read Moodle's canonical event time from its calendar day link."""
+    for link in node.select("a[href*='/calendar/view.php'][href*='time=']"):
+        time_values = parse_qs(urlparse(link.get("href", "")).query).get("time", [])
+        if time_values and time_values[0].isdigit():
+            return time_values[0]
+    return None
+
+
 def _parse_event(node: Tag, base_url: str, now: datetime | None) -> CalendarEvent:
     event_id = _first_attr(node, ["data-event-id"])
     if not event_id:
@@ -188,6 +197,7 @@ def _parse_event(node: Tag, base_url: str, now: datetime | None) -> CalendarEven
     raw_deadline = raw_deadline or _first_attr(
         node, ["data-event-timestart", "data-event-time", "data-deadline", "data-due-date"]
     )
+    raw_deadline = raw_deadline or _calendar_link_timestamp(node)
     if not raw_deadline:
         time_node = node.select_one("time[datetime]")
         raw_deadline = time_node.get("datetime") if time_node else None
