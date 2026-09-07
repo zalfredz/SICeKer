@@ -56,8 +56,12 @@ def test_embed_payloads_have_no_avatar_and_empty_deadline_is_readable() -> None:
     schedule_embed = schedule["embeds"][0]
     assert schedule_embed["title"] == "📚 JADWAL TUGAS"
     assert schedule_embed["color"] == 3447003
-    assert schedule_embed["fields"][0]["name"].startswith("🎓 Pengantar Sistem Operasi")
-    assert "[🔗 Buka Tugas]" in schedule_embed["fields"][0]["value"]
+    first_field = schedule_embed["fields"][0]
+    assert first_field["name"] == "**Tugas 0**"
+    assert first_field["value"].startswith("🎓 **Pengantar Sistem Operasi (A,B) Gasal 2026/2027**")
+    assert "⏰ Deadline: **Senin, 7 September 2026, Pukul 23.55**" in first_field["value"]
+    assert "[🔗 Buka Tugas]" in first_field["value"]
+    assert "Informasi Tugas" not in first_field["value"]
 
     deadline = deadline_today_payload([])["embeds"][0]
     assert deadline["title"] == "🚨 DEADLINE HARI INI"

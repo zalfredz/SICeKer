@@ -76,7 +76,7 @@ Workflow memiliki `permissions: contents: write` dan me-commit `state.json` hany
 
 ## Tampilan Discord
 
-Schedule menggunakan embed biru (`3447003`); deadline hari ini menggunakan embed merah (`15158332`). Setiap tugas adalah satu field: course sebagai `🎓` field name, assignment bold, deadline `⏰`, serta link `[🔗 Buka Tugas]`. Parser mempertahankan `event_id`, course/activity URL, description, component, dan type; nama course display menghapus prefix `[SI.Reg]`/`[Reg]`, sedangkan title menghapus akhiran `is due`.
+Schedule menggunakan embed biru (`3447003`); deadline hari ini menggunakan embed merah (`15158332`). Setiap tugas adalah satu field: nama tugas bold sebagai field name, kemudian course `🎓`, deadline `⏰`, dan link `[🔗 Buka Tugas]`. Description tidak ditampilkan. Parser tetap mempertahankan `event_id`, course/activity URL, description, component, dan type; nama course display menghapus prefix `[SI.Reg]`/`[Reg]`, sedangkan title menghapus akhiran `is due`.
 
 ## Testing dan keterbatasan
 

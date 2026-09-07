@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from datetime import datetime
 
 import requests
@@ -24,36 +23,21 @@ def format_wib(deadline: datetime) -> str:
     return f"{_DAYS[value.weekday()]}, {value.day} {_MONTHS[value.month - 1]} {value.year}, Pukul {value:%H.%M}"
 
 
-def _additional_information(description: str | None) -> str | None:
-    if not description:
-        return None
-    useful_lines = [
-        line.strip()
-        for line in description.splitlines()
-        if line.strip() and not re.match(r"^deadline\s*:", line.strip(), flags=re.I)
-    ]
-    return "\n".join(useful_lines) or None
-
-
 def _truncate(value: str, limit: int) -> str:
     return value if len(value) <= limit else value[: limit - 1].rstrip() + "…"
 
 
-def task_field(event: CalendarEvent, include_information: bool = False) -> dict[str, object]:
+def task_field(event: CalendarEvent) -> dict[str, object]:
     if not event.deadline:
         raise ValueError(f"Event {event.event_id} has no deadline")
     lines = [
-        f"**{event.assignment_title}**",
+        f"🎓 **{event.course_name or 'Mata kuliah tidak diketahui'}**",
         f"⏰ Deadline: **{format_wib(event.deadline)}**",
     ]
     if event.activity_url:
         lines.append(f"[🔗 Buka Tugas]({event.activity_url})")
-    if include_information:
-        information = _additional_information(event.description)
-        if information:
-            lines.extend(("", "📝 **Informasi Tugas**", information))
     return {
-        "name": f"🎓 {_truncate(event.course_name or 'Mata kuliah tidak diketahui', 253)}",
+        "name": f"**{_truncate(event.assignment_title, 252)}**",
         "value": _truncate("\n".join(lines), 1024),
         "inline": False,
     }
@@ -91,7 +75,7 @@ def deadline_today_payload(events: list[CalendarEvent]) -> dict[str, object]:
         "🚨 DEADLINE HARI INI",
         DEADLINE_TODAY_COLOR,
         "⚠️ Jangan lupa dikumpulkan sebelum deadline!",
-        [task_field(event, include_information=True) for event in events],
+        [task_field(event) for event in events],
         "✨ Tidak ada tugas yang deadline hari ini.",
     ))
 
