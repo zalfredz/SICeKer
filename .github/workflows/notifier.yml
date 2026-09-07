@@ -57,7 +57,7 @@ jobs:
           SCELE_PASSWORD: ${{ secrets.SCELE_PASSWORD }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           ACTIVATE: ${{ inputs.activate || 'OFF' }}
-          TESTER: ${{ inputs.tester || vars.TESTER || 'OFF' }}
+          TESTER: ${{ inputs.tester || 'OFF' }}
         run: python -m bot.main
 
       - name: Persist notification state
