@@ -26,7 +26,10 @@ def upcoming_events(events: list[CalendarEvent], now: datetime) -> list[Calendar
 
 def deadlines_today(events: list[CalendarEvent], now: datetime) -> list[CalendarEvent]:
     today = now.astimezone(WIB).date()
-    return [event for event in events if event.deadline and event.deadline.astimezone(WIB).date() == today]
+    return sorted(
+        (event for event in events if event.deadline and event.deadline.astimezone(WIB).date() == today),
+        key=lambda event: event.deadline,
+    )
 
 
 def enabled(name: str, value: str | None) -> bool:
