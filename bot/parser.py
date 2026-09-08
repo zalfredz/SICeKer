@@ -172,6 +172,19 @@ def _calendar_link_timestamp(node: Tag) -> str | None:
     return None
 
 
+def _is_opening_event(node: Tag) -> bool:
+    """Opening events are calendar markers, not submission deadlines."""
+    title = _first_attr(node, ["data-event-title"])
+    title = title or _first_text(
+        node, [".event-name", ".event-title", ".calendar-event-name", ".card-title", "h3", "h4"]
+    )
+    event_type = _first_attr(node, ["data-event-eventtype", "data-event-type"])
+    return bool(
+        (title and re.search(r"\bopens?\s*$", title, flags=re.I))
+        or (event_type and event_type.casefold() == "open")
+    )
+
+
 def _parse_event(node: Tag, base_url: str, now: datetime | None) -> CalendarEvent:
     event_id = _first_attr(node, ["data-event-id"])
     if not event_id:
@@ -232,9 +245,13 @@ def parse_calendar_html(
     events: list[CalendarEvent] = []
     seen: set[str] = set()
     malformed = 0
+    opening = 0
     nodes = _event_nodes(soup)
     LOGGER.info("Found %d raw event nodes", len(nodes))
     for node in nodes:
+        if _is_opening_event(node):
+            opening += 1
+            continue
         try:
             event = _parse_event(node, base_url, now)
             if event.event_id in seen:
@@ -247,4 +264,6 @@ def parse_calendar_html(
             LOGGER.warning("Skipping malformed event %s: %s", node.get("data-event-id", "unknown"), exc)
     LOGGER.info("Parsed %d events", len(events))
     LOGGER.info("Skipped %d malformed events", malformed)
+    if opening:
+        LOGGER.info("Skipped %d opening event(s)", opening)
     return events

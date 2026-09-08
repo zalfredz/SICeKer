@@ -125,7 +125,7 @@ def test_parses_moodle_card_date_rows_without_deadline_description() -> None:
 def test_calendar_day_link_timestamp_is_used_before_relative_date_text() -> None:
     timestamp = int(datetime(2026, 9, 8, 17, 0, tzinfo=WIB).timestamp())
     html = f"""
-    <div data-type="event" data-event-id="timestamp-event" data-event-title="Checkpoint opens">
+    <div data-type="event" data-event-id="timestamp-event" data-event-title="Checkpoint closes">
       <div class="description card-body"><div class="row"><div class="col-11">
         <a href="/calendar/view.php?view=day&amp;time={timestamp}">Tomorrow</a>, 09:00
       </div></div></div>
@@ -134,6 +134,25 @@ def test_calendar_day_link_timestamp_is_used_before_relative_date_text() -> None
     """
     event = parse_calendar_html(html, now=NOW)[0]
     assert event.deadline == datetime(2026, 9, 8, 17, 0, tzinfo=WIB)
+
+
+def test_opening_events_are_not_parsed_as_deadlines(caplog) -> None:
+    caplog.set_level(logging.INFO, logger="bot.parser")
+    html = """
+    <div data-type="event" data-event-id="opening" data-event-title="Checkpoint 02 opens"
+         data-event-eventtype="open">
+      <a href="/course/view.php?id=1">Course</a><a href="/mod/quiz/view.php?id=1">Buka</a>
+      <div class="description"><p>Deadline : 2026-09-08 17:00</p></div>
+    </div>
+    <div data-type="event" data-event-id="closing" data-event-title="Checkpoint 02 closes"
+         data-event-eventtype="close">
+      <a href="/course/view.php?id=1">Course</a><a href="/mod/quiz/view.php?id=1">Buka</a>
+      <div class="description"><p>Deadline : 2026-09-16 23:59</p></div>
+    </div>
+    """
+    events = parse_calendar_html(html, now=NOW)
+    assert [event.event_id for event in events] == ["closing"]
+    assert "Skipped 1 opening event(s)" in caplog.text
 
 
 def test_parser_logs_raw_and_parsed_event_counts(caplog) -> None:
