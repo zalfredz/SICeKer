@@ -26,6 +26,11 @@ def format_wib(deadline: datetime) -> str:
     return f"{_DAYS[value.weekday()]}, {value.day} {_MONTHS[value.month - 1]} {value.year}, Pukul {value:%H.%M}"
 
 
+def format_last_update(now: datetime | None = None) -> str:
+    value = (now or datetime.now(WIB)).astimezone(WIB)
+    return f"{value.day} {_MONTHS[value.month - 1]} {value.year}, {value:%H.%M} WIB"
+
+
 def _truncate(value: str, limit: int) -> str:
     return value if len(value) <= limit else value[: limit - 1].rstrip() + "…"
 
@@ -108,11 +113,11 @@ def _payload_pages(
     return {"username": BOT_USERNAME, "embeds": embeds}
 
 
-def schedule_payload(events: list[CalendarEvent]) -> dict[str, object]:
+def schedule_payload(events: list[CalendarEvent], now: datetime | None = None) -> dict[str, object]:
     return _payload_pages(
-        "📚 JADWAL TUGAS",
+        f"📚 JADWAL TUGAS - Last update: {format_last_update(now)}",
         SCHEDULE_COLOR,
-        "SCELE Reminder • Auto Update 00.00 & 12.00 WIB",
+        "SCELE Reminder • Auto Update 00.07 & 12.07 WIB",
         events,
         "✨ Tidak ada tugas yang ditemukan.",
     )
@@ -124,7 +129,7 @@ def deadline_today_payload(events: list[CalendarEvent]) -> dict[str, object]:
         DEADLINE_TODAY_COLOR,
         "⚠️ Jangan lupa dikumpulkan sebelum deadline!" if events else None,
         events,
-        "✨ Tidak ada tugas yang deadline hari ini.",
+        "Be Happy today. No deadline",
     )
 
 

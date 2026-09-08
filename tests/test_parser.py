@@ -195,11 +195,11 @@ def test_thirty_upcoming_events_are_split_across_embeds_without_loss() -> None:
 
 def test_embed_payloads_are_plain_task_first_text() -> None:
     upcoming = upcoming_events(parsed_events(), NOW)
-    schedule = schedule_payload(upcoming)
+    schedule = schedule_payload(upcoming, now=NOW)
     assert schedule["username"] == "Chloe - ALz Reminder"
     assert "avatar_url" not in schedule
     schedule_embed = schedule["embeds"][0]
-    assert schedule_embed["title"] == "📚 JADWAL TUGAS"
+    assert schedule_embed["title"] == "📚 JADWAL TUGAS - Last update: 7 September 2026, 12.00 WIB"
     assert schedule_embed["color"] == 3447003
     first_field = schedule_embed["fields"][0]
     assert first_field["name"] == "**Tugas 0**"
@@ -215,7 +215,7 @@ def test_embed_payloads_are_plain_task_first_text() -> None:
 
     deadline = deadline_today_payload([])["embeds"][0]
     assert deadline["title"] == "🚨 DEADLINE HARI INI"
-    assert deadline["description"] == "✨ Tidak ada tugas yang deadline hari ini."
+    assert deadline["description"] == "Be Happy today. No deadline"
     assert "footer" not in deadline
 
     deadline_with_tasks = deadline_today_payload([upcoming[0]])["embeds"][0]
@@ -270,7 +270,7 @@ def test_tester_mode_creates_preview_without_state_writes(monkeypatch) -> None:
     send_tester_notifications("https://example.test/webhook", upcoming, NOW)
 
     assert len(sent) == 2
-    assert sent[0]["embeds"][0]["title"] == "📚 JADWAL TUGAS"
+    assert sent[0]["embeds"][0]["title"].startswith("📚 JADWAL TUGAS - Last update: ")
     assert sent[1]["embeds"][0]["title"] == "🚨 DEADLINE HARI INI"
 
 
