@@ -2,12 +2,22 @@ name: SCELE Assignments Checker
 
 on:
   schedule:
-    # Avoid :00, when GitHub's shared scheduler is busiest.
-    # 05:07 UTC = 12.07 WIB; 17:07 UTC = 00.07 WIB on the next local day.
+    # Four independent retries avoid GitHub scheduler delays at a single minute.
+    # 05:07/22/37/52 UTC = 12.07/22/37/52 WIB.
     - cron: "7 5 * * *"
+    - cron: "22 5 * * *"
+    - cron: "37 5 * * *"
+    - cron: "52 5 * * *"
+    # 17:07/22/37/52 UTC = 00.07/22/37/52 WIB on the next local day.
     - cron: "7 17 * * *"
-    # 03:07 UTC = 10.07 WIB, for the persistent deadline-today message.
+    - cron: "22 17 * * *"
+    - cron: "37 17 * * *"
+    - cron: "52 17 * * *"
+    # 03:07/22/37/52 UTC = 10.07/22/37/52 WIB, for deadline today.
     - cron: "7 3 * * *"
+    - cron: "22 3 * * *"
+    - cron: "37 3 * * *"
+    - cron: "52 3 * * *"
   workflow_dispatch:
     inputs:
       activate:

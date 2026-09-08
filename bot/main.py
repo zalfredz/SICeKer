@@ -52,9 +52,21 @@ def enabled(name: str, value: str | None) -> bool:
 
 
 SCHEDULE_UPDATE_KINDS = {
-    "7 17 * * *": "schedule",  # 00.07 WIB
-    "7 3 * * *": "deadline",  # 10.07 WIB
-    "7 5 * * *": "schedule",  # 12.07 WIB
+    # 00.07, 00.22, 00.37, and 00.52 WIB: schedule retries.
+    "7 17 * * *": "schedule",
+    "22 17 * * *": "schedule",
+    "37 17 * * *": "schedule",
+    "52 17 * * *": "schedule",
+    # 10.07, 10.22, 10.37, and 10.52 WIB: deadline-today retries.
+    "7 3 * * *": "deadline",
+    "22 3 * * *": "deadline",
+    "37 3 * * *": "deadline",
+    "52 3 * * *": "deadline",
+    # 12.07, 12.22, 12.37, and 12.52 WIB: schedule retries.
+    "7 5 * * *": "schedule",
+    "22 5 * * *": "schedule",
+    "37 5 * * *": "schedule",
+    "52 5 * * *": "schedule",
 }
 
 

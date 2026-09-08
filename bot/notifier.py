@@ -117,7 +117,7 @@ def schedule_payload(events: list[CalendarEvent], now: datetime | None = None) -
     return _payload_pages(
         f"📚 JADWAL TUGAS - Last update: {format_last_update(now)}",
         SCHEDULE_COLOR,
-        "SCELE Reminder • Auto Update 00.07 & 12.07 WIB",
+        "SCELE Reminder • Auto Update WIB",
         events,
         "✨ Tidak ada tugas yang ditemukan.",
     )

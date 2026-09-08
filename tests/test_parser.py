@@ -275,9 +275,12 @@ def test_tester_mode_creates_preview_without_state_writes(monkeypatch) -> None:
 
 
 def test_scheduled_update_kind_comes_from_triggering_cron() -> None:
-    assert scheduled_update_kind("7 17 * * *") == "schedule"
-    assert scheduled_update_kind("7 3 * * *") == "deadline"
-    assert scheduled_update_kind("7 5 * * *") == "schedule"
+    for trigger in ("7 17 * * *", "22 17 * * *", "37 17 * * *", "52 17 * * *"):
+        assert scheduled_update_kind(trigger) == "schedule"
+    for trigger in ("7 3 * * *", "22 3 * * *", "37 3 * * *", "52 3 * * *"):
+        assert scheduled_update_kind(trigger) == "deadline"
+    for trigger in ("7 5 * * *", "22 5 * * *", "37 5 * * *", "52 5 * * *"):
+        assert scheduled_update_kind(trigger) == "schedule"
     assert scheduled_update_kind(None) is None
     assert scheduled_update_kind("0 17 * * *") is None
 

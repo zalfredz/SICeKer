@@ -34,11 +34,11 @@ Semua deadline dan logika tanggal menggunakan timezone `Asia/Jakarta` (WIB).
 
 | WIB | Pesan yang diperbarui |
 | --- | --- |
-| 00.07 | 📚 JADWAL TUGAS |
-| 10.07 | 🚨 DEADLINE HARI INI |
-| 12.07 | 📚 JADWAL TUGAS |
+| 00.07, 00.22, 00.37, 00.52 | 📚 JADWAL TUGAS |
+| 10.07, 10.22, 10.37, 10.52 | 🚨 DEADLINE HARI INI |
+| 12.07, 12.22, 12.37, 12.52 | 📚 JADWAL TUGAS |
 
-Jika salah satu pesan bot dihapus dari Discord, bot akan membuat pengganti secara otomatis pada update berikutnya dan memperbarui `state.json`.
+Setiap slot memiliki beberapa retry agar GitHub scheduler yang terlambat atau melewatkan satu trigger tidak menghentikan automation. Semua retry hanya mengedit pesan persistent yang sama, jadi tidak membuat pesan Discord tambahan. Jika salah satu pesan bot dihapus, bot membuat pengganti pada update berikutnya dan memperbarui `state.json`.
 
 ## Yang aman diubah
 
@@ -64,7 +64,7 @@ Tulis nama seperti yang tampil di Discord. Prefix administratif seperti `[Reg]` 
 
 ### Mengubah jadwal
 
-GitHub Actions memakai UTC dan scheduler bersama dapat terlambat, terutama pada menit `00`. Karena itu workflow memakai menit `07`. Bila waktu workflow diubah di `.github/workflows/notifier.yml`, sesuaikan juga map `SCHEDULE_UPDATE_KINDS` di `bot/main.py`; map tersebut menentukan apakah cron tersebut memperbarui jadwal atau deadline hari ini.
+GitHub Actions memakai UTC dan scheduler bersama dapat terlambat atau melewatkan trigger. Karena itu setiap update memiliki retry pada menit `07`, `22`, `37`, dan `52`. Bila waktu workflow diubah di `.github/workflows/notifier.yml`, sesuaikan juga map `SCHEDULE_UPDATE_KINDS` di `bot/main.py`; map tersebut menentukan apakah cron tersebut memperbarui jadwal atau deadline hari ini.
 
 ## Menjalankan manual
 
