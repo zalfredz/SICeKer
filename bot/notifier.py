@@ -65,8 +65,12 @@ def task_field(event: CalendarEvent) -> dict[str, object]:
     }
 
 
-def _embed(title: str, color: int, footer: str, fields: list[dict[str, object]], empty_text: str) -> dict[str, object]:
-    embed: dict[str, object] = {"title": title, "color": color, "footer": {"text": footer}}
+def _embed(
+    title: str, color: int, footer: str | None, fields: list[dict[str, object]], empty_text: str
+) -> dict[str, object]:
+    embed: dict[str, object] = {"title": title, "color": color}
+    if footer:
+        embed["footer"] = {"text": footer}
     if fields:
         embed["fields"] = fields
     else:
@@ -81,7 +85,7 @@ def _payload(embed: dict[str, object]) -> dict[str, object]:
 def _payload_pages(
     title: str,
     color: int,
-    footer: str,
+    footer: str | None,
     events: list[CalendarEvent],
     empty_text: str,
 ) -> dict[str, object]:
@@ -118,7 +122,7 @@ def deadline_today_payload(events: list[CalendarEvent]) -> dict[str, object]:
     return _payload_pages(
         "🚨 DEADLINE HARI INI",
         DEADLINE_TODAY_COLOR,
-        "⚠️ Jangan lupa dikumpulkan sebelum deadline!",
+        "⚠️ Jangan lupa dikumpulkan sebelum deadline!" if events else None,
         events,
         "✨ Tidak ada tugas yang deadline hari ini.",
     )

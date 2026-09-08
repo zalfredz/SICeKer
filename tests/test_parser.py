@@ -216,6 +216,10 @@ def test_embed_payloads_are_plain_task_first_text() -> None:
     deadline = deadline_today_payload([])["embeds"][0]
     assert deadline["title"] == "🚨 DEADLINE HARI INI"
     assert deadline["description"] == "✨ Tidak ada tugas yang deadline hari ini."
+    assert "footer" not in deadline
+
+    deadline_with_tasks = deadline_today_payload([upcoming[0]])["embeds"][0]
+    assert deadline_with_tasks["footer"]["text"] == "⚠️ Jangan lupa dikumpulkan sebelum deadline!"
 
 
 def test_initial_activation_creates_two_messages_once(tmp_path: Path, monkeypatch) -> None:
