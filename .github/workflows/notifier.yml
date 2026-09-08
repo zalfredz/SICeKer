@@ -28,14 +28,6 @@ on:
         options:
           - "OFF"
           - "ON"
-      tester:
-        description: "TESTER mode: sends production-format test notifications without changing state"
-        required: false
-        default: "OFF"
-        type: choice
-        options:
-          - "OFF"
-          - "ON"
       update_now:
         description: "Update both existing persistent Discord messages now"
         required: false
@@ -76,7 +68,6 @@ jobs:
           SCELE_PASSWORD: ${{ secrets.SCELE_PASSWORD }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           ACTIVATE: ${{ inputs.activate || 'OFF' }}
-          TESTER: ${{ inputs.tester || 'OFF' }}
           MANUAL_UPDATE: ${{ inputs.update_now || 'OFF' }}
           # Keeps the intended update type even when the runner starts late.
           SCHEDULE_TRIGGER: ${{ github.event.schedule }}

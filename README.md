@@ -24,7 +24,7 @@ Bot Python sederhana untuk mengambil tugas dari kalender SCELE UI dan menampilka
    | `DISCORD_WEBHOOK_URL` | URL Discord webhook channel tujuan |
 
 3. Pastikan **Settings → Actions → General → Workflow permissions** mengizinkan **Read and write permissions**. Bot perlu menyimpan ID pesan Discord di `state.json`.
-4. Buka tab **Actions**, pilih workflow **SCELE Assignments Checker**, lalu klik **Run workflow** dengan `activate: ON` dan `tester: OFF`.
+4. Buka tab **Actions**, pilih workflow **SCELE Assignments Checker**, lalu klik **Run workflow** dengan `activate: ON`.
 
 Activation pertama membuat dua pesan Discord dan menyimpan ID-nya. Jika activation gagal, bot tetap nonaktif. Menjalankan activation lagi saat bot sudah aktif tidak akan membuat pesan duplikat.
 
@@ -68,13 +68,12 @@ GitHub Actions memakai UTC dan scheduler bersama dapat terlambat atau melewatkan
 
 ## Menjalankan manual
 
-Pada tab **Actions → SCELE Assignments Checker → Run workflow**, tersedia tiga mode:
+Pada tab **Actions → SCELE Assignments Checker → Run workflow**, tersedia dua mode:
 
 - `activate: ON` — hanya untuk mengaktifkan bot pertama kali dan membuat dua pesan persistent.
-- `tester: ON` — mengirim preview dengan data SCELE asli dan format produksi, tetapi tidak mengubah `state.json` atau jadwal production.
 - `update_now: ON` — langsung mengedit dua pesan persistent memakai data SCELE terbaru.
 
-Untuk memperbarui dua pesan persistent kapan saja, jalankan workflow dengan `update_now: ON` dan mode lain tetap `OFF`. Mode ini memakai data SCELE terbaru, mengedit pesan yang ada, dan tidak membuat preview atau activation baru.
+Untuk memperbarui dua pesan persistent kapan saja, jalankan workflow dengan `update_now: ON` dan `activate: OFF`. Mode ini memakai data SCELE terbaru dan mengedit pesan yang ada.
 
 Pilih hanya satu mode pada setiap manual run. `update_now` membutuhkan bot yang sudah aktif; pesan baru hanya dibuat bila bot sedang memulihkan pesan persistent yang sebelumnya dihapus.
 
@@ -95,7 +94,6 @@ Isi `.env`:
 SCELE_USERNAME=username_scele
 SCELE_PASSWORD=password_scele
 DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
-TESTER=OFF
 ACTIVATE=OFF
 MANUAL_UPDATE=OFF
 ```

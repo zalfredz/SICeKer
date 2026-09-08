@@ -150,15 +150,6 @@ def update_deadline(webhook_url: str, state: StateStore, upcoming: list[Calendar
         state.save()
 
 
-def send_tester_notifications(webhook_url: str, upcoming: list[CalendarEvent], now: datetime) -> None:
-    """Legacy manual preview mode: same embeds, no production-state writes."""
-    LOGGER.info("Sending TEST notification")
-    create_message(webhook_url, schedule_payload(upcoming))
-    due_today = deadlines_today(upcoming, now)
-    create_message(webhook_url, deadline_today_payload(due_today))
-    LOGGER.info("Test notifications sent successfully")
-
-
 def _webhook_url() -> str:
     webhook_url = os.environ.get("DISCORD_WEBHOOK_URL")
     if not webhook_url:
@@ -169,11 +160,10 @@ def _webhook_url() -> str:
 def main() -> None:
     load_dotenv()
     now = datetime.now(WIB)
-    is_tester = enabled("TESTER", os.environ.get("TESTER"))
     is_activate = enabled("ACTIVATE", os.environ.get("ACTIVATE"))
     is_manual_update = enabled("MANUAL_UPDATE", os.environ.get("MANUAL_UPDATE"))
-    if sum((is_tester, is_activate, is_manual_update)) > 1:
-        raise RuntimeError("TESTER, ACTIVATE, and MANUAL_UPDATE cannot be ON together.")
+    if is_activate and is_manual_update:
+        raise RuntimeError("ACTIVATE and MANUAL_UPDATE cannot be ON together.")
 
     state = StateStore(os.environ.get("STATE_FILE", "state.json"))
     state.load()
@@ -183,11 +173,6 @@ def main() -> None:
             LOGGER.info("Bot already active. No activation message sent.")
             return
         activate(_webhook_url(), state, fetch_upcoming(now), now)
-        return
-
-    if is_tester:
-        LOGGER.info("TESTER MODE: ON")
-        send_tester_notifications(_webhook_url(), fetch_upcoming(now), now)
         return
 
     if not state.active:

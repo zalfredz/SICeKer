@@ -5,10 +5,8 @@ from pathlib import Path
 from bot.main import (
     activate,
     deadlines_today,
-    enabled,
     main as run_main,
     scheduled_update_kind,
-    send_tester_notifications,
     update_schedule,
     upcoming_events,
 )
@@ -260,20 +258,6 @@ def test_schedule_update_edits_existing_message_and_recovers_missing_message(tmp
     assert state.schedule_message_id == "replacement-schedule"
 
 
-def test_tester_mode_creates_preview_without_state_writes(monkeypatch) -> None:
-    sent: list[dict[str, object]] = []
-    monkeypatch.setattr("bot.main.create_message", lambda _url, payload: sent.append(payload) or "preview")
-    upcoming = upcoming_events(parsed_events(), NOW)
-
-    assert enabled("TESTER", "ON") is True
-    assert enabled("TESTER", "off") is False
-    send_tester_notifications("https://example.test/webhook", upcoming, NOW)
-
-    assert len(sent) == 2
-    assert sent[0]["embeds"][0]["title"].startswith("📚 JADWAL TUGAS - Last update: ")
-    assert sent[1]["embeds"][0]["title"] == "🚨 DEADLINE HARI INI"
-
-
 def test_scheduled_update_kind_comes_from_triggering_cron() -> None:
     for trigger in ("7 17 * * *", "22 17 * * *", "37 17 * * *", "52 17 * * *"):
         assert scheduled_update_kind(trigger) == "schedule"
@@ -289,7 +273,6 @@ def test_scheduled_run_uses_cron_trigger_not_delayed_runner_time(monkeypatch, tm
     state_path = tmp_path / "state.json"
     state_path.write_text('{"active": true, "schedule_message_id": "schedule-id"}', encoding="utf-8")
     monkeypatch.setenv("STATE_FILE", str(state_path))
-    monkeypatch.setenv("TESTER", "OFF")
     monkeypatch.setenv("ACTIVATE", "OFF")
     monkeypatch.setenv("SCHEDULE_TRIGGER", "7 17 * * *")
     monkeypatch.setenv("DISCORD_WEBHOOK_URL", "https://example.test/webhook")
@@ -313,7 +296,6 @@ def test_manual_update_refreshes_both_persistent_messages(monkeypatch, tmp_path:
         encoding="utf-8",
     )
     monkeypatch.setenv("STATE_FILE", str(state_path))
-    monkeypatch.setenv("TESTER", "OFF")
     monkeypatch.setenv("ACTIVATE", "OFF")
     monkeypatch.setenv("MANUAL_UPDATE", "ON")
     monkeypatch.setenv("SCHEDULE_TRIGGER", "")
@@ -332,7 +314,6 @@ def test_inactive_bot_skips_fetch_and_discord(monkeypatch, tmp_path: Path) -> No
     state_path = tmp_path / "state.json"
     state_path.write_text('{"active": false}', encoding="utf-8")
     monkeypatch.setenv("STATE_FILE", str(state_path))
-    monkeypatch.setenv("TESTER", "OFF")
     monkeypatch.setenv("ACTIVATE", "OFF")
     monkeypatch.setattr(
         "bot.main.SceleClient",
