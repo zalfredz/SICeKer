@@ -51,34 +51,6 @@ def enabled(name: str, value: str | None) -> bool:
     return normalized == "ON"
 
 
-SCHEDULE_UPDATE_KINDS = {
-    # 00.07, 00.22, 00.37, and 00.52 WIB: schedule retries.
-    "7 17 * * *": "schedule",
-    "22 17 * * *": "schedule",
-    "37 17 * * *": "schedule",
-    "52 17 * * *": "schedule",
-    # 10.07, 10.22, 10.37, and 10.52 WIB: deadline-today retries.
-    "7 3 * * *": "deadline",
-    "22 3 * * *": "deadline",
-    "37 3 * * *": "deadline",
-    "52 3 * * *": "deadline",
-    # 12.07, 12.22, 12.37, and 12.52 WIB: schedule retries.
-    "7 5 * * *": "schedule",
-    "22 5 * * *": "schedule",
-    "37 5 * * *": "schedule",
-    "52 5 * * *": "schedule",
-}
-
-
-def scheduled_update_kind(schedule_trigger: str | None) -> str | None:
-    """Return the update type from GitHub's triggering cron expression.
-
-    GitHub-hosted runners can start late, so the runner's current clock must
-    not decide which scheduled update is due.
-    """
-    return SCHEDULE_UPDATE_KINDS.get((schedule_trigger or "").strip())
-
-
 def fetch_upcoming(now: datetime) -> list[CalendarEvent]:
     LOGGER.info("Fetching SCELE calendar")
     html = SceleClient(os.environ.get("SCELE_USERNAME"), os.environ.get("SCELE_PASSWORD")).fetch_calendar()
@@ -188,17 +160,7 @@ def main() -> None:
         LOGGER.info("Manual update complete")
         return
 
-    kind = scheduled_update_kind(os.environ.get("SCHEDULE_TRIGGER"))
-    if kind is None:
-        LOGGER.info("No scheduled update trigger. Skipping manual production update.")
-        return
-
-    upcoming = fetch_upcoming(now)
-    if kind == "schedule":
-        update_schedule(_webhook_url(), state, upcoming)
-    else:
-        update_deadline(_webhook_url(), state, upcoming, now)
-    LOGGER.info("Done")
+    LOGGER.info("No manual mode selected. Skipping update.")
 
 
 if __name__ == "__main__":

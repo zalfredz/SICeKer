@@ -6,7 +6,6 @@ from bot.main import (
     activate,
     deadlines_today,
     main as run_main,
-    scheduled_update_kind,
     update_schedule,
     upcoming_events,
 )
@@ -258,37 +257,6 @@ def test_schedule_update_edits_existing_message_and_recovers_missing_message(tmp
     assert state.schedule_message_id == "replacement-schedule"
 
 
-def test_scheduled_update_kind_comes_from_triggering_cron() -> None:
-    for trigger in ("7 17 * * *", "22 17 * * *", "37 17 * * *", "52 17 * * *"):
-        assert scheduled_update_kind(trigger) == "schedule"
-    for trigger in ("7 3 * * *", "22 3 * * *", "37 3 * * *", "52 3 * * *"):
-        assert scheduled_update_kind(trigger) == "deadline"
-    for trigger in ("7 5 * * *", "22 5 * * *", "37 5 * * *", "52 5 * * *"):
-        assert scheduled_update_kind(trigger) == "schedule"
-    assert scheduled_update_kind(None) is None
-    assert scheduled_update_kind("0 17 * * *") is None
-
-
-def test_scheduled_run_uses_cron_trigger_not_delayed_runner_time(monkeypatch, tmp_path: Path) -> None:
-    state_path = tmp_path / "state.json"
-    state_path.write_text('{"active": true, "schedule_message_id": "schedule-id"}', encoding="utf-8")
-    monkeypatch.setenv("STATE_FILE", str(state_path))
-    monkeypatch.setenv("ACTIVATE", "OFF")
-    monkeypatch.setenv("SCHEDULE_TRIGGER", "7 17 * * *")
-    monkeypatch.setenv("DISCORD_WEBHOOK_URL", "https://example.test/webhook")
-    monkeypatch.setattr("bot.main.fetch_upcoming", lambda _now: [])
-
-    updated: list[str] = []
-    monkeypatch.setattr("bot.main.update_schedule", lambda *_args: updated.append("schedule"))
-    monkeypatch.setattr(
-        "bot.main.update_deadline",
-        lambda *_args: (_ for _ in ()).throw(AssertionError("wrong update")),
-    )
-
-    run_main()
-    assert updated == ["schedule"]
-
-
 def test_manual_update_refreshes_both_persistent_messages(monkeypatch, tmp_path: Path) -> None:
     state_path = tmp_path / "state.json"
     state_path.write_text(
@@ -298,7 +266,6 @@ def test_manual_update_refreshes_both_persistent_messages(monkeypatch, tmp_path:
     monkeypatch.setenv("STATE_FILE", str(state_path))
     monkeypatch.setenv("ACTIVATE", "OFF")
     monkeypatch.setenv("MANUAL_UPDATE", "ON")
-    monkeypatch.setenv("SCHEDULE_TRIGGER", "")
     monkeypatch.setenv("DISCORD_WEBHOOK_URL", "https://example.test/webhook")
     monkeypatch.setattr("bot.main.fetch_upcoming", lambda _now: [])
 

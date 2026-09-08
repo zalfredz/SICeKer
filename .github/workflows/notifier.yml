@@ -1,23 +1,6 @@
 name: SCELE Assignments Checker
 
 on:
-  schedule:
-    # Four independent retries avoid GitHub scheduler delays at a single minute.
-    # 05:07/22/37/52 UTC = 12.07/22/37/52 WIB.
-    - cron: "7 5 * * *"
-    - cron: "22 5 * * *"
-    - cron: "37 5 * * *"
-    - cron: "52 5 * * *"
-    # 17:07/22/37/52 UTC = 00.07/22/37/52 WIB on the next local day.
-    - cron: "7 17 * * *"
-    - cron: "22 17 * * *"
-    - cron: "37 17 * * *"
-    - cron: "52 17 * * *"
-    # 03:07/22/37/52 UTC = 10.07/22/37/52 WIB, for deadline today.
-    - cron: "7 3 * * *"
-    - cron: "22 3 * * *"
-    - cron: "37 3 * * *"
-    - cron: "52 3 * * *"
   workflow_dispatch:
     inputs:
       activate:
@@ -69,8 +52,6 @@ jobs:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           ACTIVATE: ${{ inputs.activate || 'OFF' }}
           MANUAL_UPDATE: ${{ inputs.update_now || 'OFF' }}
-          # Keeps the intended update type even when the runner starts late.
-          SCHEDULE_TRIGGER: ${{ github.event.schedule }}
         run: python -m bot.main
 
       - name: Persist notification state
