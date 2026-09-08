@@ -11,6 +11,7 @@ Bot Python sederhana untuk mengambil tugas dari kalender SCELE UI dan menampilka
 - Akun SCELE yang dapat melihat kalender.
 - Discord webhook untuk channel tujuan.
 - GitHub Actions yang diizinkan menulis ke repository.
+- Akun [cron-job.org](https://cron-job.org) untuk pemicu otomatis yang tepat waktu.
 
 ## Mulai cepat
 
@@ -39,6 +40,47 @@ Pemicu jadwal menggunakan cron-job.org dengan timezone `Asia/Jakarta` (WIB), lal
 | 12.00 | 📚 JADWAL TUGAS dan 🚨 DEADLINE HARI INI |
 
 Untuk setup cron-job.org, gunakan endpoint `workflow_dispatch` GitHub dengan input `activate: OFF` dan `update_now: ON`. Semua run mengedit pesan persistent yang sama, jadi tidak membuat pesan Discord tambahan. Jika salah satu pesan bot dihapus, bot membuat pengganti pada update berikutnya dan memperbarui `state.json`.
+
+GitHub Actions dipakai untuk menjalankan bot, bukan sebagai clock. Pemicu jadwal dipindahkan ke cron-job.org karena scheduled workflow GitHub dapat terlambat atau terlewat.
+
+### Setup cron-job.org
+
+1. Buat fine-grained GitHub token melalui **Settings → Developer settings → Personal access tokens → Fine-grained tokens**. Batasi token hanya ke repository ini, beri izin `Actions: Read and write`, dan gunakan masa berlaku terbatas.
+2. Di cron-job.org, buat satu job dengan konfigurasi berikut:
+
+   | Field | Value |
+   | --- | --- |
+   | Title | `SICeKer Automatic Update` |
+   | URL | `https://api.github.com/repos/OWNER/REPOSITORY/actions/workflows/notifier.yml/dispatches` |
+   | Method | `POST` |
+   | Timezone | `Asia/Jakarta` |
+   | Crontab | `0 0,10,12 * * *` |
+   | Save responses | Off |
+
+   Ganti `OWNER/REPOSITORY` dengan repository Anda. Untuk repo ini, URL-nya adalah `https://api.github.com/repos/zalfredz/SICeKer/actions/workflows/notifier.yml/dispatches`.
+
+3. Tambahkan request headers sebagai key/value:
+
+   | Key | Value |
+   | --- | --- |
+   | `Accept` | `application/vnd.github+json` |
+   | `Content-Type` | `application/json` |
+   | `Authorization` | `Bearer TOKEN_GITHUB_KAMU` |
+   | `X-GitHub-Api-Version` | `2026-03-10` |
+
+4. Isi request body:
+
+   ```json
+   {
+     "ref": "main",
+     "inputs": {
+       "activate": "OFF",
+       "update_now": "ON"
+     }
+   }
+   ```
+
+Jangan taruh token GitHub di repository, `.env`, GitHub Secrets, atau screenshot. Token hanya disimpan sebagai header pada job cron-job.org. Setelah membuat job, lakukan test run dan pastikan GitHub Actions menunjukkan event `workflow_dispatch` serta pesan Discord memperbarui `Last update`.
 
 ## Yang aman diubah
 
