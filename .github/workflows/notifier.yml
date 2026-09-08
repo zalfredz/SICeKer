@@ -11,8 +11,18 @@ on:
         options:
           - "OFF"
           - "ON"
+      update_kind:
+        description: "Choose which persistent message to refresh"
+        required: false
+        default: "OFF"
+        type: choice
+        options:
+          - "OFF"
+          - "BOTH"
+          - "SCHEDULE"
+          - "DEADLINE"
       update_now:
-        description: "Update both existing persistent Discord messages now"
+        description: "Legacy: update both messages; use update_kind=BOTH instead"
         required: false
         default: "OFF"
         type: choice
@@ -51,6 +61,7 @@ jobs:
           SCELE_PASSWORD: ${{ secrets.SCELE_PASSWORD }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           ACTIVATE: ${{ inputs.activate || 'OFF' }}
+          UPDATE_KIND: ${{ inputs.update_kind || 'OFF' }}
           MANUAL_UPDATE: ${{ inputs.update_now || 'OFF' }}
         run: python -m bot.main
 

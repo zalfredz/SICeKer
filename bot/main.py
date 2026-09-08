@@ -1,4 +1,4 @@
-"""Activation and fixed-time updates for persistent SCELE Discord messages."""
+"""Activation and explicit updates for persistent SCELE Discord messages."""
 
 from __future__ import annotations
 
@@ -49,6 +49,13 @@ def enabled(name: str, value: str | None) -> bool:
     if normalized not in {"ON", "OFF"}:
         raise RuntimeError(f"{name} must be ON or OFF.")
     return normalized == "ON"
+
+
+def selected_update_kind(value: str | None) -> str:
+    kind = (value or "OFF").strip().upper()
+    if kind not in {"OFF", "BOTH", "SCHEDULE", "DEADLINE"}:
+        raise RuntimeError("UPDATE_KIND must be OFF, BOTH, SCHEDULE, or DEADLINE.")
+    return kind
 
 
 def fetch_upcoming(now: datetime) -> list[CalendarEvent]:
@@ -133,9 +140,14 @@ def main() -> None:
     load_dotenv()
     now = datetime.now(WIB)
     is_activate = enabled("ACTIVATE", os.environ.get("ACTIVATE"))
-    is_manual_update = enabled("MANUAL_UPDATE", os.environ.get("MANUAL_UPDATE"))
-    if is_activate and is_manual_update:
-        raise RuntimeError("ACTIVATE and MANUAL_UPDATE cannot be ON together.")
+    is_legacy_update = enabled("MANUAL_UPDATE", os.environ.get("MANUAL_UPDATE"))
+    update_kind = selected_update_kind(os.environ.get("UPDATE_KIND"))
+    if is_legacy_update and update_kind != "OFF":
+        raise RuntimeError("MANUAL_UPDATE and UPDATE_KIND cannot be used together.")
+    if is_legacy_update:
+        update_kind = "BOTH"
+    if is_activate and update_kind != "OFF":
+        raise RuntimeError("ACTIVATE and UPDATE_KIND cannot be used together.")
 
     state = StateStore(os.environ.get("STATE_FILE", "state.json"))
     state.load()
@@ -151,16 +163,18 @@ def main() -> None:
         LOGGER.info("Bot inactive. Skipping update.")
         return
 
-    if is_manual_update:
-        LOGGER.info("MANUAL UPDATE: ON")
+    if update_kind != "OFF":
+        LOGGER.info("UPDATE KIND: %s", update_kind)
         upcoming = fetch_upcoming(now)
         webhook_url = _webhook_url()
-        update_schedule(webhook_url, state, upcoming)
-        update_deadline(webhook_url, state, upcoming, now)
-        LOGGER.info("Manual update complete")
+        if update_kind in {"BOTH", "SCHEDULE"}:
+            update_schedule(webhook_url, state, upcoming)
+        if update_kind in {"BOTH", "DEADLINE"}:
+            update_deadline(webhook_url, state, upcoming, now)
+        LOGGER.info("Update complete")
         return
 
-    LOGGER.info("No manual mode selected. Skipping update.")
+    LOGGER.info("No update kind selected. Skipping update.")
 
 
 if __name__ == "__main__":

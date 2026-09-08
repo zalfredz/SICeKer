@@ -31,15 +31,18 @@ Activation pertama membuat dua pesan Discord dan menyimpan ID-nya. Jika activati
 
 ## Jadwal otomatis
 
-Pemicu jadwal menggunakan cron-job.org dengan timezone `Asia/Jakarta` (WIB), lalu menjalankan workflow GitHub dengan `update_now: ON`.
+Pemicu jadwal menggunakan cron-job.org dengan timezone `Asia/Jakarta` (WIB), lalu menjalankan workflow GitHub dengan `update_kind: BOTH`.
 
 | WIB | Pesan yang diperbarui |
 | --- | --- |
 | 00.00 | 📚 JADWAL TUGAS dan 🚨 DEADLINE HARI INI |
-| 10.00 | 📚 JADWAL TUGAS dan 🚨 DEADLINE HARI INI |
+| 04.00 | 📚 JADWAL TUGAS dan 🚨 DEADLINE HARI INI |
+| 08.00 | 📚 JADWAL TUGAS dan 🚨 DEADLINE HARI INI |
 | 12.00 | 📚 JADWAL TUGAS dan 🚨 DEADLINE HARI INI |
+| 16.00 | 📚 JADWAL TUGAS dan 🚨 DEADLINE HARI INI |
+| 20.00 | 📚 JADWAL TUGAS dan 🚨 DEADLINE HARI INI |
 
-Untuk setup cron-job.org, gunakan endpoint `workflow_dispatch` GitHub dengan input `activate: OFF` dan `update_now: ON`. Semua run mengedit pesan persistent yang sama, jadi tidak membuat pesan Discord tambahan. Jika salah satu pesan bot dihapus, bot membuat pengganti pada update berikutnya dan memperbarui `state.json`.
+Untuk setup cron-job.org, gunakan endpoint `workflow_dispatch` GitHub dengan input `activate: OFF` dan `update_kind: BOTH`. Semua run mengedit pesan persistent yang sama, jadi tidak membuat pesan Discord tambahan. Jika salah satu pesan bot dihapus, bot membuat pengganti pada update berikutnya dan memperbarui `state.json`.
 
 GitHub Actions dipakai untuk menjalankan bot, bukan sebagai clock. Pemicu jadwal dipindahkan ke cron-job.org karena scheduled workflow GitHub dapat terlambat atau terlewat.
 
@@ -54,7 +57,7 @@ GitHub Actions dipakai untuk menjalankan bot, bukan sebagai clock. Pemicu jadwal
    | URL | `https://api.github.com/repos/OWNER/REPOSITORY/actions/workflows/notifier.yml/dispatches` |
    | Method | `POST` |
    | Timezone | `Asia/Jakarta` |
-   | Crontab | `0 0,10,12 * * *` |
+   | Crontab | `0 0,4,8,12,16,20 * * *` |
    | Save responses | Off |
 
    Ganti `OWNER/REPOSITORY` dengan repository Anda. Untuk repo ini, URL-nya adalah `https://api.github.com/repos/zalfredz/SICeKer/actions/workflows/notifier.yml/dispatches`.
@@ -75,12 +78,24 @@ GitHub Actions dipakai untuk menjalankan bot, bukan sebagai clock. Pemicu jadwal
      "ref": "main",
      "inputs": {
        "activate": "OFF",
-       "update_now": "ON"
+       "update_kind": "BOTH"
      }
    }
    ```
 
 Jangan taruh token GitHub di repository, `.env`, GitHub Secrets, atau screenshot. Token hanya disimpan sebagai header pada job cron-job.org. Setelah membuat job, lakukan test run dan pastikan GitHub Actions menunjukkan event `workflow_dispatch` serta pesan Discord memperbarui `Last update`.
+
+### Memilih pesan yang diperbarui
+
+Code tetap memisahkan pembaruan pesan jadwal dan deadline. Ubah nilai `update_kind` pada request body cron-job.org sesuai kebutuhan:
+
+| Nilai | Pesan yang diperbarui |
+| --- | --- |
+| `BOTH` | 📚 Jadwal tugas dan 🚨 deadline hari ini |
+| `SCHEDULE` | Hanya 📚 jadwal tugas |
+| `DEADLINE` | Hanya 🚨 deadline hari ini |
+
+Untuk jadwal berbeda, buat cron job terpisah dengan `update_kind` yang sesuai. Konfigurasi bawaan repository ini memakai `BOTH` setiap empat jam.
 
 ## Yang aman diubah
 
@@ -109,11 +124,11 @@ Tulis nama seperti yang tampil di Discord. Prefix administratif seperti `[Reg]` 
 Pada tab **Actions → SCELE Assignments Checker → Run workflow**, tersedia dua mode:
 
 - `activate: ON` — hanya untuk mengaktifkan bot pertama kali dan membuat dua pesan persistent.
-- `update_now: ON` — langsung mengedit dua pesan persistent memakai data SCELE terbaru.
+- `update_kind: BOTH`, `SCHEDULE`, atau `DEADLINE` — mengedit pesan yang dipilih memakai data SCELE terbaru.
 
-Untuk memperbarui dua pesan persistent kapan saja, jalankan workflow dengan `update_now: ON` dan `activate: OFF`. Mode ini memakai data SCELE terbaru dan mengedit pesan yang ada.
+Untuk memperbarui dua pesan persistent kapan saja, jalankan workflow dengan `update_kind: BOTH` dan `activate: OFF`. Mode ini memakai data SCELE terbaru dan mengedit pesan yang ada.
 
-Pilih hanya satu mode pada setiap manual run. `update_now` membutuhkan bot yang sudah aktif; pesan baru hanya dibuat bila bot sedang memulihkan pesan persistent yang sebelumnya dihapus.
+Pilih `activate` atau satu nilai `update_kind` pada setiap manual run. `update_kind` membutuhkan bot yang sudah aktif; pesan baru hanya dibuat bila bot sedang memulihkan pesan persistent yang sebelumnya dihapus.
 
 ## Menjalankan lokal
 
@@ -133,7 +148,7 @@ SCELE_USERNAME=username_scele
 SCELE_PASSWORD=password_scele
 DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
 ACTIVATE=OFF
-MANUAL_UPDATE=OFF
+UPDATE_KIND=OFF
 ```
 
 Lalu jalankan:

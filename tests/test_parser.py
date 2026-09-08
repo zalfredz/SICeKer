@@ -6,6 +6,7 @@ from bot.main import (
     activate,
     deadlines_today,
     main as run_main,
+    selected_update_kind,
     update_schedule,
     upcoming_events,
 )
@@ -257,7 +258,14 @@ def test_schedule_update_edits_existing_message_and_recovers_missing_message(tmp
     assert state.schedule_message_id == "replacement-schedule"
 
 
-def test_manual_update_refreshes_both_persistent_messages(monkeypatch, tmp_path: Path) -> None:
+def test_update_kind_validation() -> None:
+    assert selected_update_kind("both") == "BOTH"
+    assert selected_update_kind("schedule") == "SCHEDULE"
+    assert selected_update_kind("deadline") == "DEADLINE"
+    assert selected_update_kind(None) == "OFF"
+
+
+def test_both_update_refreshes_both_persistent_messages(monkeypatch, tmp_path: Path) -> None:
     state_path = tmp_path / "state.json"
     state_path.write_text(
         '{"active": true, "schedule_message_id": "schedule-id", "deadline_message_id": "deadline-id"}',
@@ -265,7 +273,8 @@ def test_manual_update_refreshes_both_persistent_messages(monkeypatch, tmp_path:
     )
     monkeypatch.setenv("STATE_FILE", str(state_path))
     monkeypatch.setenv("ACTIVATE", "OFF")
-    monkeypatch.setenv("MANUAL_UPDATE", "ON")
+    monkeypatch.setenv("MANUAL_UPDATE", "OFF")
+    monkeypatch.setenv("UPDATE_KIND", "BOTH")
     monkeypatch.setenv("DISCORD_WEBHOOK_URL", "https://example.test/webhook")
     monkeypatch.setattr("bot.main.fetch_upcoming", lambda _now: [])
 
@@ -275,6 +284,27 @@ def test_manual_update_refreshes_both_persistent_messages(monkeypatch, tmp_path:
 
     run_main()
     assert updated == ["schedule", "deadline"]
+
+
+def test_selected_update_kind_refreshes_only_requested_message(monkeypatch, tmp_path: Path) -> None:
+    def run_update(kind: str) -> list[str]:
+        state_path = tmp_path / f"{kind.lower()}.json"
+        state_path.write_text('{"active": true}', encoding="utf-8")
+        monkeypatch.setenv("STATE_FILE", str(state_path))
+        monkeypatch.setenv("ACTIVATE", "OFF")
+        monkeypatch.setenv("MANUAL_UPDATE", "OFF")
+        monkeypatch.setenv("UPDATE_KIND", kind)
+        monkeypatch.setenv("DISCORD_WEBHOOK_URL", "https://example.test/webhook")
+        monkeypatch.setattr("bot.main.fetch_upcoming", lambda _now: [])
+
+        updated: list[str] = []
+        monkeypatch.setattr("bot.main.update_schedule", lambda *_args: updated.append("schedule"))
+        monkeypatch.setattr("bot.main.update_deadline", lambda *_args: updated.append("deadline"))
+        run_main()
+        return updated
+
+    assert run_update("SCHEDULE") == ["schedule"]
+    assert run_update("DEADLINE") == ["deadline"]
 
 
 def test_inactive_bot_skips_fetch_and_discord(monkeypatch, tmp_path: Path) -> None:
