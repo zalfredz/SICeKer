@@ -280,6 +280,28 @@ def test_scheduled_run_uses_cron_trigger_not_delayed_runner_time(monkeypatch, tm
     assert updated == ["schedule"]
 
 
+def test_manual_update_refreshes_both_persistent_messages(monkeypatch, tmp_path: Path) -> None:
+    state_path = tmp_path / "state.json"
+    state_path.write_text(
+        '{"active": true, "schedule_message_id": "schedule-id", "deadline_message_id": "deadline-id"}',
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("STATE_FILE", str(state_path))
+    monkeypatch.setenv("TESTER", "OFF")
+    monkeypatch.setenv("ACTIVATE", "OFF")
+    monkeypatch.setenv("MANUAL_UPDATE", "ON")
+    monkeypatch.setenv("SCHEDULE_TRIGGER", "")
+    monkeypatch.setenv("DISCORD_WEBHOOK_URL", "https://example.test/webhook")
+    monkeypatch.setattr("bot.main.fetch_upcoming", lambda _now: [])
+
+    updated: list[str] = []
+    monkeypatch.setattr("bot.main.update_schedule", lambda *_args: updated.append("schedule"))
+    monkeypatch.setattr("bot.main.update_deadline", lambda *_args: updated.append("deadline"))
+
+    run_main()
+    assert updated == ["schedule", "deadline"]
+
+
 def test_inactive_bot_skips_fetch_and_discord(monkeypatch, tmp_path: Path) -> None:
     state_path = tmp_path / "state.json"
     state_path.write_text('{"active": false}', encoding="utf-8")

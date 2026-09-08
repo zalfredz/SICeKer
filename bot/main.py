@@ -159,8 +159,9 @@ def main() -> None:
     now = datetime.now(WIB)
     is_tester = enabled("TESTER", os.environ.get("TESTER"))
     is_activate = enabled("ACTIVATE", os.environ.get("ACTIVATE"))
-    if is_tester and is_activate:
-        raise RuntimeError("TESTER and ACTIVATE cannot both be ON.")
+    is_manual_update = enabled("MANUAL_UPDATE", os.environ.get("MANUAL_UPDATE"))
+    if sum((is_tester, is_activate, is_manual_update)) > 1:
+        raise RuntimeError("TESTER, ACTIVATE, and MANUAL_UPDATE cannot be ON together.")
 
     state = StateStore(os.environ.get("STATE_FILE", "state.json"))
     state.load()
@@ -178,7 +179,16 @@ def main() -> None:
         return
 
     if not state.active:
-        LOGGER.info("Bot inactive. Skipping scheduled update.")
+        LOGGER.info("Bot inactive. Skipping update.")
+        return
+
+    if is_manual_update:
+        LOGGER.info("MANUAL UPDATE: ON")
+        upcoming = fetch_upcoming(now)
+        webhook_url = _webhook_url()
+        update_schedule(webhook_url, state, upcoming)
+        update_deadline(webhook_url, state, upcoming, now)
+        LOGGER.info("Manual update complete")
         return
 
     kind = scheduled_update_kind(os.environ.get("SCHEDULE_TRIGGER"))

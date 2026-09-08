@@ -26,6 +26,14 @@ on:
         options:
           - "OFF"
           - "ON"
+      update_now:
+        description: "Update both existing persistent Discord messages now"
+        required: false
+        default: "OFF"
+        type: choice
+        options:
+          - "OFF"
+          - "ON"
 
 permissions:
   contents: write
@@ -59,6 +67,7 @@ jobs:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           ACTIVATE: ${{ inputs.activate || 'OFF' }}
           TESTER: ${{ inputs.tester || 'OFF' }}
+          MANUAL_UPDATE: ${{ inputs.update_now || 'OFF' }}
           # Keeps the intended update type even when the runner starts late.
           SCHEDULE_TRIGGER: ${{ github.event.schedule }}
         run: python -m bot.main

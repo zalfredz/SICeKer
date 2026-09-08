@@ -68,12 +68,15 @@ GitHub Actions memakai UTC dan scheduler bersama dapat terlambat, terutama pada 
 
 ## Menjalankan manual
 
-Pada tab **Actions → SCELE Assignments Checker → Run workflow**, tersedia dua mode:
+Pada tab **Actions → SCELE Assignments Checker → Run workflow**, tersedia tiga mode:
 
 - `activate: ON` — hanya untuk mengaktifkan bot pertama kali dan membuat dua pesan persistent.
 - `tester: ON` — mengirim preview dengan data SCELE asli dan format produksi, tetapi tidak mengubah `state.json` atau jadwal production.
+- `update_now: ON` — langsung mengedit dua pesan persistent memakai data SCELE terbaru.
 
-Jangan aktifkan keduanya bersamaan. Setelah bot aktif, workflow terjadwal hanya mengedit pesan yang sudah ada.
+Untuk memperbarui dua pesan persistent kapan saja, jalankan workflow dengan `update_now: ON` dan mode lain tetap `OFF`. Mode ini memakai data SCELE terbaru, mengedit pesan yang ada, dan tidak membuat preview atau activation baru.
+
+Pilih hanya satu mode pada setiap manual run. `update_now` membutuhkan bot yang sudah aktif; pesan baru hanya dibuat bila bot sedang memulihkan pesan persistent yang sebelumnya dihapus.
 
 ## Menjalankan lokal
 
@@ -94,6 +97,7 @@ SCELE_PASSWORD=password_scele
 DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
 TESTER=OFF
 ACTIVATE=OFF
+MANUAL_UPDATE=OFF
 ```
 
 Lalu jalankan:
